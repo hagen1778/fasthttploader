@@ -1,6 +1,6 @@
 # fasthttploader
 
-fasthttploader is a simple tttp loader, like apache benchamrk, based on fasthttp. Originally its forked from github.com/rakyll/boom but later, forced to new project
+fasthttploader is a simple http loader, like apache benchamrk, based on [fasthttp](https://github.com/valyala/fasthttp). Originally its forked from github.com/rakyll/boom but later, forced to new project
 This loader was written with purpose to get practice in golang
 
 ## Usage
