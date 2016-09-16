@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/valyala/fasthttp"
@@ -13,10 +12,7 @@ import (
 	"runtime/pprof"
 )
 
-const (
-	headerRegexp = "^([\\w-]+):\\s*(.+)"
-	authRegexp   = "^([\\w-\\.]+):(.+)"
-)
+const headerRegexp = "^([\\w-]+):\\s*(.+)"
 
 var (
 	m           = flag.String("m", "GET", "")
@@ -29,7 +25,7 @@ var (
 	n = flag.Int("n", 200, "")
 	q = flag.Int("q", 0, "")
 
-	output             = flag.String("o", "", "")
+	enableKeepAlive  = flag.Bool("k", false, "")
 	disableCompression = flag.Bool("disable-compression", false, "")
 
 	flagCPUProfile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -43,9 +39,6 @@ Options:
   -c  Number of requests to run concurrently. Total number of requests cannot
       be smaller than the concurency level.
   -q  Rate limit, in seconds (QPS).
-  -o  Output type. If none provided, a summary is printed.
-     "csv" is the only supported alternative. Dumps the response
-     metrics in comma-seperated values format.
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
   -h  Custom HTTP headers, name1:value1;name2:value2.
@@ -57,8 +50,9 @@ Options:
 `
 
 func main() {
+	// ?
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, fmt.Sprintf(usage, runtime.NumCPU()))
+		fmt.Fprint(os.Stderr, usage)
 	}
 
 	flag.Parse()
@@ -82,10 +76,6 @@ func main() {
 
 	if num <= 0 || conc <= 0 {
 		usageAndExit("n and c cannot be smaller than 1.")
-	}
-
-	if *output != "csv" && *output != "" {
-		usageAndExit("Invalid output type; only csv is supported.")
 	}
 
 	var (
@@ -120,16 +110,19 @@ func main() {
 		header.Set("Accept-Encoding", "gzip")
 	}
 
+	if !*enableKeepAlive {
+		header.Set("Connection", "close")
+	}
+
 	var req fasthttp.Request
 	header.CopyTo(&req.Header)
 	req.AppendBodyString(*body)
 
-	(&Boomer{
+	(&Loader{
 		Request: &req,
 		N:       num,
 		C:       conc,
 		Qps:     q,
-		Output:  *output,
 	}).Run()
 }
 

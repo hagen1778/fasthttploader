@@ -1,17 +1,3 @@
-// Copyright 2014 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package main
 
 import (
@@ -42,13 +28,10 @@ type report struct {
 	statusCodeDist map[int]int
 	lats           []float64
 	sizeTotal      int64
-
-	output string
 }
 
-func newReport(size int, results []result, output string, total time.Duration) *report {
+func newReport(size int, results []result, total time.Duration) *report {
 	return &report{
-		output:         output,
 		results:        results,
 		total:          total,
 		statusCodeDist: make(map[int]int),
@@ -92,11 +75,6 @@ func (r *report) finalize() {
 func (r *report) print() {
 	sort.Float64s(r.lats)
 
-	if r.output == "csv" {
-		r.printCSV()
-		return
-	}
-
 	if len(r.lats) > 0 {
 		r.fastest = r.lats[0]
 		r.slowest = r.lats[len(r.lats)-1]
@@ -119,12 +97,6 @@ func (r *report) print() {
 
 	if len(r.errorDist) > 0 {
 		r.printErrors()
-	}
-}
-
-func (r *report) printCSV() {
-	for i, val := range r.lats {
-		fmt.Printf("%v,%4.4f\n", i+1, val)
 	}
 }
 
