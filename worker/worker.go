@@ -22,7 +22,8 @@ type sender interface {
 
 
 func NewHostWorker(host string) *worker {
-	worker := HostWorker{host: host}
+	worker := HostWorker{}
+	worker.host = host
 	worker.OpenConnection()
 
 	return &worker
