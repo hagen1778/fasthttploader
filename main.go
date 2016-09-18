@@ -39,6 +39,7 @@ Options:
   -c  Number of requests to run concurrently. Total number of requests cannot
       be smaller than the concurency level.
   -q  Rate limit, in seconds (QPS).
+  -k  allow keepalive.
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
   -h  Custom HTTP headers, name1:value1;name2:value2.

@@ -16,12 +16,17 @@ type worker struct{
 	bw   *bufio.Writer
 }
 
-type sender interface {
-	sendRequest()
+type Sender interface {
+	SendRequest(req *fasthttp.Request, resp *fasthttp.Response) error
+	CloseConnection()
+	OpenConnection()
 }
 
+type HostWorker struct {
+	worker
+}
 
-func NewHostWorker(host string) *worker {
+func NewHostWorker(host string) Sender {
 	worker := HostWorker{}
 	worker.host = host
 	worker.OpenConnection()
@@ -29,13 +34,8 @@ func NewHostWorker(host string) *worker {
 	return &worker
 }
 
-type HostWorker struct {
-	worker
-}
-
-
 //TODO: add redirect support for 301,302,303 headers
-func (hw *HostWorker) sendRequest(req *fasthttp.Request, resp *fasthttp.Response) error {
+func (hw *HostWorker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) error {
 	err := hw.send(req, resp)
 	if err != nil || resp.ConnectionClose() {
 		hw.restartConnection()
@@ -81,6 +81,10 @@ func (hw *HostWorker) restartConnection() {
 	hw.OpenConnection()
 	atomic.AddUint32(&connectionRestarts, 1)
 }
+
+
+
+
 
 type countConn struct {
 	net.Conn

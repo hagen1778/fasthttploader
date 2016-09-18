@@ -69,7 +69,7 @@ func (l *Loader) Run() {
 }
 
 func (l *Loader) runWorker(ch <-chan struct{}) {
-	worker := worker.NewHostWorker(l.host)
+	worker := worker.NewHostWorker(string(l.Request.URI().Host()))
 	defer worker.CloseConnection()
 	var resp fasthttp.Response
 	req := cloneRequest(l.Request)
