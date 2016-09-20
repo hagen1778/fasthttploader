@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/valyala/fasthttp"
-	"log"
-	"runtime/pprof"
 )
 
 const headerRegexp = "^([\\w-]+):\\s*(.+)"
@@ -25,11 +23,9 @@ var (
 	n = flag.Int("n", 200, "")
 	q = flag.Int("q", 0, "")
 
-	enableKeepAlive  = flag.Bool("k", false, "")
+	disableKeepAlive  = flag.Bool("k", false, "")
+	enablePipeline  = flag.Bool("p", false, "")
 	disableCompression = flag.Bool("disable-compression", false, "")
-
-	flagCPUProfile = flag.String("cpuprofile", "", "write cpu profile to file")
-	flagMemProfile = flag.String("memprofile", "", "write memory profile to file")
 )
 
 var usage = `Usage: boom [options...] <url>
@@ -39,7 +35,8 @@ Options:
   -c  Number of requests to run concurrently. Total number of requests cannot
       be smaller than the concurency level.
   -q  Rate limit, in seconds (QPS).
-  -k  allow keepalive.
+  -k  disable keepalive.
+  -p  use pipeline
 
   -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
   -h  Custom HTTP headers, name1:value1;name2:value2.
@@ -51,7 +48,6 @@ Options:
 `
 
 func main() {
-	// ?
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
 	}
@@ -59,16 +55,6 @@ func main() {
 	flag.Parse()
 	if flag.NArg() < 1 {
 		usageAndExit("")
-	}
-
-	if *flagCPUProfile != "" {
-		log.Print("Profiling to file ", *flagCPUProfile, " started.")
-		f, err := os.Create(*flagCPUProfile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
 	}
 
 	num := *n
@@ -100,24 +86,25 @@ func main() {
 			header.Set(match[1], match[2])
 		}
 	}
-
 	if *accept != "" {
 		header.Set("Accept", *accept)
 	}
-
 	header.SetMethod(method)
 	header.SetRequestURI(url)
 	if !*disableCompression {
 		header.Set("Accept-Encoding", "gzip")
 	}
 
-	if !*enableKeepAlive {
+	if *disableKeepAlive && !*enablePipeline {
 		header.Set("Connection", "close")
+	} else {
+		header.Set("Connection", "keep-alive")
 	}
 
 	var req fasthttp.Request
 	header.CopyTo(&req.Header)
 	req.AppendBodyString(*body)
+
 
 	(&Loader{
 		Request: &req,

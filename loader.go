@@ -9,6 +9,9 @@ import (
 	"sync/atomic"
 
 	"github.com/hagen1778/fasthttploader/worker"
+	"strings"
+	"strconv"
+	"log"
 )
 
 type result struct {
@@ -58,8 +61,7 @@ func (l *Loader) inc() {
 func (l *Loader) Run() {
 	start := time.Now()
 	l.results = make([]result, l.N)
-	//port
-	//l.host = string(l.Request.URI().Host())
+	l.host = convertHost(l.Request)
 	l.startProgress()
 
 	l.runWorkers()
@@ -68,16 +70,43 @@ func (l *Loader) Run() {
 	newReport(l.N, l.results, time.Now().Sub(start)).finalize()
 }
 
+func convertHost(req *fasthttp.Request) string {
+	addr := string(req.URI().Host())
+	if len(addr) == 0 {
+		log.Fatalf("address cannot be empty")
+	}
+	tmp := strings.SplitN(addr, ":", 2)
+	if len(tmp) != 2 {
+		return tmp[0]+":80"
+	}
+	port := tmp[1]
+	portInt, err := strconv.Atoi(port)
+	if err != nil {
+		log.Fatalf("cannot parse port %q of addr %q: %s", port, addr, err)
+	}
+	if portInt < 0 {
+		log.Fatalf("upstreamHosts port %d cannot be negative: %q", portInt, addr)
+	}
+
+	return addr
+}
+
 func (l *Loader) runWorker(ch <-chan struct{}) {
-	worker := worker.NewHostWorker(string(l.Request.URI().Host()))
-	defer worker.CloseConnection()
+	var w worker.Sender
+	if *enablePipeline{
+		w = worker.NewPipelineWorker(l.host)
+	} else {
+		w = worker.NewHostWorker(l.host)
+	}
+
+	defer w.CloseConnection()
 	var resp fasthttp.Response
 	req := cloneRequest(l.Request)
 
 	for range ch {
 		s := time.Now()
 
-		err := worker.SendRequest(req, &resp)
+		err := w.SendRequest(req, &resp)
 		idx := atomic.AddUint64(&l.idx, 1)
 		l.inc()
 

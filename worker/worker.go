@@ -1,11 +1,9 @@
 package worker
 
 import (
-	"fmt"
 	"github.com/valyala/fasthttp"
 	"bufio"
 	"net"
-	"sync/atomic"
 	"log"
 )
 
@@ -19,7 +17,6 @@ type worker struct{
 type Sender interface {
 	SendRequest(req *fasthttp.Request, resp *fasthttp.Response) error
 	CloseConnection()
-	OpenConnection()
 }
 
 type HostWorker struct {
@@ -44,18 +41,15 @@ func (hw *HostWorker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response
 	return err
 }
 
-func (hw *HostWorker) send(req *fasthttp.Request, resp *fasthttp.Response) error {
-	if err := req.Write(hw.bw); err != nil {
-		fmt.Printf("Write - unexpected error: %s\n", err)
-		return err
+func (hw *HostWorker) send(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
+	if err = req.Write(hw.bw); err != nil {
+		return
 	}
-	if err := hw.bw.Flush(); err != nil {
-		fmt.Printf("Flush - unexpected error: %s\n", err)
-		return err
+	if err = hw.bw.Flush(); err != nil {
+		return
 	}
-	if err := resp.Read(hw.br); err != nil {
-		fmt.Printf("Read - unexpected error: %s\n", err)
-		return err
+	if err = resp.Read(hw.br); err != nil {
+		return
 	}
 
 	return nil
@@ -64,9 +58,9 @@ func (hw *HostWorker) send(req *fasthttp.Request, resp *fasthttp.Response) error
 func (hw *HostWorker) OpenConnection() {
 	conn, err := fasthttp.Dial(hw.host)
 	if err != nil {
-		log.Fatalf("conn error: %s\n", err)
+		log.Fatalf("conn error: %s; adress: %s\n", err, hw.host)
 	}
-	hw.conn = &countConn{Conn: conn}
+	hw.conn = conn
 
 	hw.br = bufio.NewReaderSize(hw.conn, 16*1024)
 	hw.bw = bufio.NewWriter(hw.conn)
@@ -79,45 +73,29 @@ func (hw *HostWorker) CloseConnection() {
 func (hw *HostWorker) restartConnection() {
 	hw.CloseConnection()
 	hw.OpenConnection()
-	atomic.AddUint32(&connectionRestarts, 1)
 }
 
 
-
-
-
-type countConn struct {
-	net.Conn
-	writeCalls int
-	readCalls  int
-	bytesRead  int64
+type PipelineWorker struct {
+	worker
+	pc *fasthttp.PipelineClient
 }
 
-func (c *countConn) Write(p []byte) (int, error) {
-	n, err := c.Conn.Write(p)
-	c.writeCalls++
-	return n, err
+func NewPipelineWorker(host string) Sender {
+	pc := &fasthttp.PipelineClient{
+		Addr:               host,
+	}
+	pw := &PipelineWorker{
+		pc: pc,
+	}
+	pw.host = host
+	return pw
+
 }
 
-func (c *countConn) Read(p []byte) (int, error) {
-	n, err := c.Conn.Read(p)
-	c.readCalls++
-	c.bytesRead += int64(n)
-	return n, err
+func (pw *PipelineWorker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
+	return pw.pc.Do(req, resp)
 }
 
-var (
-	writeCalls         uint32
-	readCalls          uint32
-	bytesRead          uint64
-	connectionRestarts uint32
-)
-
-func (c *countConn) Close() error {
-	err := c.Conn.Close()
-	atomic.AddUint32(&writeCalls, uint32(c.writeCalls))
-	atomic.AddUint32(&readCalls, uint32(c.readCalls))
-	atomic.AddUint64(&bytesRead, uint64(c.bytesRead))
-	return err
+func (pw *PipelineWorker) CloseConnection() {
 }
-
