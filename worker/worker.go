@@ -1,10 +1,11 @@
 package worker
 
 import (
-	"github.com/valyala/fasthttp"
 	"bufio"
 	"net"
 	"log"
+
+	"github.com/valyala/fasthttp"
 )
 
 type worker struct{
@@ -19,12 +20,12 @@ type Sender interface {
 	CloseConnection()
 }
 
-type HostWorker struct {
+type hostWorker struct {
 	worker
 }
 
 func NewHostWorker(host string) Sender {
-	worker := HostWorker{}
+	worker := hostWorker{}
 	worker.host = host
 	worker.OpenConnection()
 
@@ -32,7 +33,7 @@ func NewHostWorker(host string) Sender {
 }
 
 //TODO: add redirect support for 301,302,303 headers
-func (hw *HostWorker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) error {
+func (hw *hostWorker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) error {
 	err := hw.send(req, resp)
 	if err != nil || resp.ConnectionClose() {
 		hw.restartConnection()
@@ -41,7 +42,7 @@ func (hw *HostWorker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response
 	return err
 }
 
-func (hw *HostWorker) send(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
+func (hw *hostWorker) send(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
 	if err = req.Write(hw.bw); err != nil {
 		return
 	}
@@ -55,7 +56,7 @@ func (hw *HostWorker) send(req *fasthttp.Request, resp *fasthttp.Response) (err 
 	return nil
 }
 
-func (hw *HostWorker) OpenConnection() {
+func (hw *hostWorker) OpenConnection() {
 	conn, err := fasthttp.Dial(hw.host)
 	if err != nil {
 		log.Fatalf("conn error: %s; adress: %s\n", err, hw.host)
@@ -66,17 +67,17 @@ func (hw *HostWorker) OpenConnection() {
 	hw.bw = bufio.NewWriter(hw.conn)
 }
 
-func (hw *HostWorker) CloseConnection() {
+func (hw *hostWorker) CloseConnection() {
 	hw.conn.Close()
 }
 
-func (hw *HostWorker) restartConnection() {
+func (hw *hostWorker) restartConnection() {
 	hw.CloseConnection()
 	hw.OpenConnection()
 }
 
 
-type PipelineWorker struct {
+type pipelineWorker struct {
 	worker
 	pc *fasthttp.PipelineClient
 }
@@ -85,7 +86,7 @@ func NewPipelineWorker(host string) Sender {
 	pc := &fasthttp.PipelineClient{
 		Addr:               host,
 	}
-	pw := &PipelineWorker{
+	pw := &pipelineWorker{
 		pc: pc,
 	}
 	pw.host = host
@@ -93,9 +94,9 @@ func NewPipelineWorker(host string) Sender {
 
 }
 
-func (pw *PipelineWorker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
+func (pw *pipelineWorker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
 	return pw.pc.Do(req, resp)
 }
 
-func (pw *PipelineWorker) CloseConnection() {
+func (pw *pipelineWorker) CloseConnection() {
 }

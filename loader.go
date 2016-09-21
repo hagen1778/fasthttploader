@@ -3,15 +3,13 @@ package main
 import (
 	"sync"
 	"time"
-
-	"github.com/valyala/fasthttp"
-	"github.com/rakyll/pb"
-	"sync/atomic"
-
-	"github.com/hagen1778/fasthttploader/worker"
 	"strings"
 	"strconv"
 	"log"
+
+	"github.com/valyala/fasthttp"
+	"github.com/rakyll/pb"
+	"github.com/hagen1778/fasthttploader/worker"
 )
 
 type result struct {
@@ -146,34 +144,6 @@ func (l *Loader) runWorkers() {
 	close(jobsch)
 	wg.Wait()
 }
-
-/*//TODO: add redirect support for 301,302,303 headers
-func (w *worker) sendRequest(req *fasthttp.Request, resp *fasthttp.Response) error {
-	err := w.send(req, resp)
-	if err != nil || resp.ConnectionClose() {
-		w.restartConnection()
-	}
-
-	return err
-}
-
-func (w *worker) send(req *fasthttp.Request, resp *fasthttp.Response) error {
-	if err := req.Write(w.bw); err != nil {
-		fmt.Printf("Write - unexpected error: %s\n", err)
-		return err
-	}
-	if err := w.bw.Flush(); err != nil {
-		fmt.Printf("Flush - unexpected error: %s\n", err)
-		return err
-	}
-	if err := resp.Read(w.br); err != nil {
-		fmt.Printf("Read - unexpected error: %s\n", err)
-		return err
-	}
-
-	return nil
-}*/
-
 
 func cloneRequest(r *fasthttp.Request) *fasthttp.Request {
 	r2 := new(fasthttp.Request)

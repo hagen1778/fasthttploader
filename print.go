@@ -76,8 +76,6 @@ func (r *report) print() {
 		r.fastest = r.lats[0]
 		r.slowest = r.lats[len(r.lats)-1]
 		fmt.Printf("\nSummary:\n")
-		//fmt.Printf("  Write calls: %d, read calls: %d, bytes read: %d\n", writeCalls, readCalls, bytesRead)
-		//fmt.Printf("  Conn restarts: %d\n", connectionRestarts)
 		fmt.Printf("  Total:\t%4.4f secs.\n", r.total.Seconds())
 		fmt.Printf("  Slowest:\t%4.4f secs.\n", r.slowest)
 		fmt.Printf("  Fastest:\t%4.4f secs.\n", r.fastest)
