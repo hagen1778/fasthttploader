@@ -22,3 +22,7 @@ func Worker(host string) *worker {
 func (w *worker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
 	return w.hc.Do(req, resp)
 }
+
+// dial
+
+//

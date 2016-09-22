@@ -11,6 +11,8 @@ type M struct {
 	Errors		int
 	RequestSum	int
 	RequestDuration	time.Duration
+	bytesSend
+	bytesReceived
 
 	sync.Mutex
 }
