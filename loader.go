@@ -8,64 +8,74 @@ import (
 	"log"
 
 	"github.com/valyala/fasthttp"
-	"github.com/rakyll/pb"
-	"github.com/hagen1778/fasthttploader/worker"
+	"fmt"
 )
 
 type result struct {
-	err           error
-	statusCode    int
-	duration      time.Duration
-	contentLength int64
+	connections	int
+	timeouts	int
+	errors		int
+	requestSum	int
+	requestDuration	time.Duration
+
+	sync.Mutex
+}
+
+
+
+func (l *Loader) startProgress() {
+	fmt.Println("Start loading")
+}
+
+func (l *Loader) finalizeProgress() {
+	fmt.Println("Done")
+}
+
+func (l *Loader) inc() {
+
 }
 
 type Loader struct {
 	// Request is the request to be made.
 	Request *fasthttp.Request
 
-	// N is the total number of requests to make.
-	N int
-
-	// C is the concurrency level, the number of concurrent workers to run.
-	C int
-
-	// Timeout in seconds.
-	Timeout int
-
 	// Qps is the rate limit.
 	Qps int
 
-	bar     *pb.ProgressBar
+	// Duration is the duration of test running.
+	Duration time.Duration
+
+
 	host    string
-	results []result
-	idx     uint64
 }
 
-func (l *Loader) startProgress() {
-	l.bar = pb.New(l.N)
-	l.bar.Start()
-}
-
-func (l *Loader) finalizeProgress() {
-	l.bar.Finish()
-}
-
-func (l *Loader) inc() {
-	l.bar.Increment()
-}
-
-// Run makes all the requests, prints the summary. It blocks until
-// all work is done.
+var stopCh = make(chan struct{})
+var r *result
 func (l *Loader) Run() {
-	start := time.Now()
-	l.results = make([]result, l.N)
 	l.host = convertHost(l.Request)
-	l.startProgress()
 
+	r = &result{}
+	go l.startCountdown()
 	l.runWorkers()
+}
+
+func (l *Loader) startCountdown(){
+	l.startProgress()
+	timeout := time.After(l.Duration)
+	tick := time.Tick(l.Duration/10)
+	for {
+		select {
+		case <-timeout:
+			fmt.Println("Timeout")
+			stopCh <- struct{}{}
+		case <-tick:
+			if err := push(); err != nil {
+				fmt.Printf("%s\n", err)
+			}
+		}
+	}
 
 	l.finalizeProgress()
-	newReport(l.N, l.results, time.Now().Sub(start)).finalize()
 }
 
 func convertHost(req *fasthttp.Request) string {
@@ -89,59 +99,59 @@ func convertHost(req *fasthttp.Request) string {
 	return addr
 }
 
-func (l *Loader) runWorker(ch <-chan struct{}) {
-	var w worker.Sender
-	if *enablePipeline{
-		w = worker.NewPipelineWorker(l.host)
-	} else {
-		w = worker.NewHostWorker(l.host)
-	}
-
-	defer w.CloseConnection()
+func (l *Loader) runWorker(ch chan struct{}) {
+	w := Worker(l.host)
 	var resp fasthttp.Response
 	req := cloneRequest(l.Request)
 
 	for range ch {
 		s := time.Now()
-
 		err := w.SendRequest(req, &resp)
-		idx := atomic.AddUint64(&l.idx, 1)
-		l.inc()
 
-		r := &l.results[idx-1]
-		if err == nil {
-			r.statusCode = resp.StatusCode()
-			r.contentLength = int64(resp.Header.ContentLength())
+		r.Lock()
+		if err != nil {
+			if err == fasthttp.ErrTimeout {
+				r.timeouts++
+			}
+			r.errors++
 		}
-		r.duration = time.Since(s)
-		r.err = err
+		r.requestDuration += time.Since(s)
+		r.requestSum++
+		r.Unlock()
 	}
 }
 
+const jobCapacity = 10000
 func (l *Loader) runWorkers() {
 	var wg sync.WaitGroup
-	wg.Add(l.C)
+	wg.Add(10)
 
 	var throttle <-chan time.Time
 	if l.Qps > 0 {
 		throttle = time.Tick(time.Duration(1e6/(l.Qps)) * time.Microsecond)
 	}
 
-	jobsch := make(chan struct{}, l.N)
-	for i := 0; i < l.C; i++ {
+	jobsch := make(chan struct{}, jobCapacity)
+	for i := 0; i < 10; i++ {
 		go func() {
 			l.runWorker(jobsch)
 			wg.Done()
 		}()
 	}
 
-	for i := 0; i < l.N; i++ {
-		if l.Qps > 0 {
-			<-throttle
+	for {
+		select {
+		case <-stopCh:
+			close(jobsch)
+			return
+		default:
+			if l.Qps > 0 {
+				<-throttle
+			}
+			jobsch <- struct{}{}
 		}
-		jobsch <- struct{}{}
 	}
-	close(jobsch)
+	//close(jobsch)
 	wg.Wait()
 }
 

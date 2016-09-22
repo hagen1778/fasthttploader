@@ -4,50 +4,34 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
-
 	"github.com/valyala/fasthttp"
+	"regexp"
+	"time"
 )
-
-const headerRegexp = "^([\\w-]+):\\s*(.+)"
 
 var (
 	m           = flag.String("m", "GET", "")
 	headers     = flag.String("h", "", "")
-	body        = flag.String("d", "", "")
+	body        = flag.String("b", "", "")
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 
-	c = flag.Int("c", 50, "")
-	n = flag.Int("n", 200, "")
 	q = flag.Int("q", 0, "")
+	d = flag.Duration("d", 5*time.Second, "")
 
 	disableKeepAlive  = flag.Bool("k", false, "")
-	enablePipeline  = flag.Bool("p", false, "")
 	disableCompression = flag.Bool("disable-compression", false, "")
 )
 
 var usage = `Usage: boom [options...] <url>
 
 Options:
-  -n  Number of requests to run.
-  -c  Number of requests to run concurrently. Total number of requests cannot
-      be smaller than the concurency level.
   -q  Rate limit, in seconds (QPS).
   -k  disable keepalive.
-  -p  use pipeline
-
-  -m  HTTP method, one of GET, POST, PUT, DELETE, HEAD, OPTIONS.
-  -h  Custom HTTP headers, name1:value1;name2:value2.
-  -A  HTTP Accept header.
-  -d  HTTP request body.
-  -T  Content-type, defaults to "text/html".
-
-  -disable-compression  Disable compression.
 `
 
-func main() {
+func main(){
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
 	}
@@ -57,22 +41,23 @@ func main() {
 		usageAndExit("")
 	}
 
-	num := *n
-	conc := *c
-	q := *q
+	var req fasthttp.Request
+	header := formRequestHeader()
+	header.CopyTo(&req.Header)
+	req.AppendBodyString(*body)
 
-	if num <= 0 || conc <= 0 {
-		usageAndExit("n and c cannot be smaller than 1.")
-	}
+	(&Loader{
+		Request: 	&req,
+		Qps:     	*q,
+		Duration:     	*d,
+	}).Run()
+}
 
-	var (
-		url, method string
-		header      fasthttp.RequestHeader
-	)
+const headerRegexp = "^([\\w-]+):\\s*(.+)"
 
-	url = flag.Args()[0]
-	method = strings.ToUpper(*m)
-
+func formRequestHeader() fasthttp.RequestHeader{
+	var header fasthttp.RequestHeader
+	var url, method string
 	// set content-type
 	header.SetContentType(*contentType)
 	// set any other additional headers
@@ -89,29 +74,29 @@ func main() {
 	if *accept != "" {
 		header.Set("Accept", *accept)
 	}
+	url = flag.Args()[0]
+	method = strings.ToUpper(*m)
 	header.SetMethod(method)
 	header.SetRequestURI(url)
 	if !*disableCompression {
 		header.Set("Accept-Encoding", "gzip")
 	}
-
-	if *disableKeepAlive && !*enablePipeline {
+	if *disableKeepAlive {
 		header.Set("Connection", "close")
 	} else {
 		header.Set("Connection", "keep-alive")
 	}
 
-	var req fasthttp.Request
-	header.CopyTo(&req.Header)
-	req.AppendBodyString(*body)
+	return header
+}
 
-
-	(&Loader{
-		Request: &req,
-		N:       num,
-		C:       conc,
-		Qps:     q,
-	}).Run()
+func parseInputWithRegexp(input, regx string) ([]string, error) {
+	re := regexp.MustCompile(regx)
+	matches := re.FindStringSubmatch(input)
+	if len(matches) < 1 {
+		return nil, fmt.Errorf("could not parse the provided input; input = %v", input)
+	}
+	return matches, nil
 }
 
 func usageAndExit(msg string) {
@@ -122,13 +107,4 @@ func usageAndExit(msg string) {
 	flag.Usage()
 	fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
-}
-
-func parseInputWithRegexp(input, regx string) ([]string, error) {
-	re := regexp.MustCompile(regx)
-	matches := re.FindStringSubmatch(input)
-	if len(matches) < 1 {
-		return nil, fmt.Errorf("could not parse the provided input; input = %v", input)
-	}
-	return matches, nil
 }
