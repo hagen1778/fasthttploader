@@ -1,0 +1,18 @@
+{% stripspace %}
+{% func (m *M) Prometheus() %}
+	# TYPE connections counter {% newline %}
+	connections {% space %} {%d= m.Connections %} {% newline %}
+	{% newline %}
+	# TYPE timeouts counter {% newline %}
+	timeouts {% space %} {%d= m.Timeouts %} {% newline %}
+	{% newline %}
+	# TYPE errors counter {% newline %}
+	errors {% space %} {%d= m.Errors %} {% newline %}
+	{% newline %}
+	# TYPE requestSum counter {% newline %}
+	requestSum {% space %} {%d= m.RequestSum %} {% newline %}
+	{% newline %}
+	# TYPE requestDuration counter {% newline %}
+	requestDuration {% space %} {%d= int(m.RequestDuration) %} {% newline %}
+{% endfunc %}
+{% endstripspace %}

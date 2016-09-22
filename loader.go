@@ -8,20 +8,9 @@ import (
 	"log"
 
 	"github.com/valyala/fasthttp"
+	"github.com/hagen1778/fasthttploader/metrics"
 	"fmt"
 )
-
-type result struct {
-	connections	int
-	timeouts	int
-	errors		int
-	requestSum	int
-	requestDuration	time.Duration
-
-	sync.Mutex
-}
-
-
 
 func (l *Loader) startProgress() {
 	fmt.Println("Start loading")
@@ -50,11 +39,11 @@ type Loader struct {
 }
 
 var stopCh = make(chan struct{})
-var r *result
+var m *metrics.M
 func (l *Loader) Run() {
 	l.host = convertHost(l.Request)
 
-	r = &result{}
+	m = &metrics.M{}
 	go l.startCountdown()
 	l.runWorkers()
 }
@@ -108,16 +97,16 @@ func (l *Loader) runWorker(ch chan struct{}) {
 		s := time.Now()
 		err := w.SendRequest(req, &resp)
 
-		r.Lock()
+		m.Lock()
 		if err != nil {
 			if err == fasthttp.ErrTimeout {
-				r.timeouts++
+				m.timeouts++
 			}
-			r.errors++
+			m.errors++
 		}
-		r.requestDuration += time.Since(s)
-		r.requestSum++
-		r.Unlock()
+		m.requestDuration += time.Since(s)
+		m.requestSum++
+		m.Unlock()
 	}
 }
 
