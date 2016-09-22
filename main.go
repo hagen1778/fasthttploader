@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	m           = flag.String("m", "GET", "")
+	method      = flag.String("m", "GET", "")
 	headers     = flag.String("h", "", "")
 	body        = flag.String("b", "", "")
 	accept      = flag.String("A", "", "")
@@ -57,7 +57,7 @@ const headerRegexp = "^([\\w-]+):\\s*(.+)"
 
 func formRequestHeader() fasthttp.RequestHeader{
 	var header fasthttp.RequestHeader
-	var url, method string
+	var url string
 	// set content-type
 	header.SetContentType(*contentType)
 	// set any other additional headers
@@ -75,8 +75,7 @@ func formRequestHeader() fasthttp.RequestHeader{
 		header.Set("Accept", *accept)
 	}
 	url = flag.Args()[0]
-	method = strings.ToUpper(*m)
-	header.SetMethod(method)
+	header.SetMethod(strings.ToUpper(*method))
 	header.SetRequestURI(url)
 	if !*disableCompression {
 		header.Set("Accept-Encoding", "gzip")

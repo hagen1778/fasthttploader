@@ -23,12 +23,12 @@ func push() error {
 	var req fasthttp.Request
 	var resp fasthttp.Response
 
-	r.Lock()
-	r2 := r
-	r.Unlock()
+	m.Lock()
+	metrics := m.Prometheus()
+	m.Unlock()
 
 	req.Header.SetMethod("POST")
-	req.SetBodyString(r2.Prometheus())
+	req.SetBodyString(metrics)
 	req.SetRequestURI(fmt.Sprintf("/metrics/job/%s", *jobName))
 	req.Header.SetHost(*gatewayAddr)
 	err := pushGatewayClient.Do(&req, &resp)

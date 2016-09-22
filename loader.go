@@ -100,12 +100,12 @@ func (l *Loader) runWorker(ch chan struct{}) {
 		m.Lock()
 		if err != nil {
 			if err == fasthttp.ErrTimeout {
-				m.timeouts++
+				m.Timeouts++
 			}
-			m.errors++
+			m.Errors++
 		}
-		m.requestDuration += time.Since(s)
-		m.requestSum++
+		m.RequestDuration += time.Since(s)
+		m.RequestSum++
 		m.Unlock()
 	}
 }
