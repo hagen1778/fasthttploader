@@ -19,11 +19,10 @@ var (
 )
 
 type Metrics struct {
-	Connections	int
-	Timeouts	int
-	Errors		int
-	RequestSum	int
-	RequestDuration	time.Duration
+	Timeouts	uint64
+	Errors		uint64
+	RequestSum	uint64
+	RequestDuration	uint64
 
 	connStats
 

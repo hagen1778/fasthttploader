@@ -11,6 +11,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/hagen1778/fasthttploader/metrics"
 	"github.com/hagen1778/fasthttploader/pushgateway"
+	"sync/atomic"
 )
 
 func (l *Loader) startProgress() {
@@ -52,7 +53,7 @@ func (l *Loader) Run() {
 func (l *Loader) startCountdown(){
 	l.startProgress()
 	timeout := time.After(l.Duration)
-	tick := time.Tick(l.Duration/10)
+	tick := time.Tick(l.Duration/50)
 	for {
 		select {
 		case <-timeout:
@@ -97,17 +98,15 @@ func (l *Loader) runWorker(ch chan struct{}) {
 	for range ch {
 		s := time.Now()
 		err := w.SendRequest(req, &resp)
-
-		m.Lock()
 		if err != nil {
 			if err == fasthttp.ErrTimeout {
-				m.Timeouts++
+				atomic.AddUint64(&m.Timeouts, 1)
 			}
-			m.Errors++
+			fmt.Printf("Err while sending req: %s", err)
+			atomic.AddUint64(&m.Errors, 1)
 		}
-		m.RequestDuration += time.Since(s)
-		m.RequestSum++
-		m.Unlock()
+		atomic.AddUint64(&m.RequestDuration, uint64(time.Since(s)))
+		atomic.AddUint64(&m.RequestSum, 1)
 	}
 }
 

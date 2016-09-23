@@ -25,11 +25,11 @@ func (m *Metrics) StreamPrometheus(qw422016 *qt422016.Writer) {
 	qw422016.N().S(`
 `)
 	//line metrics/metrics.qtpl:3
-	qw422016.N().S(`connections`)
+	qw422016.N().S(`openConns`)
 	//line metrics/metrics.qtpl:4
 	qw422016.N().S(` `)
 	//line metrics/metrics.qtpl:4
-	qw422016.N().D(m.Connections)
+	qw422016.N().D(int(m.OpenConns))
 	//line metrics/metrics.qtpl:4
 	qw422016.N().S(`
 `)
@@ -46,7 +46,7 @@ func (m *Metrics) StreamPrometheus(qw422016 *qt422016.Writer) {
 	//line metrics/metrics.qtpl:7
 	qw422016.N().S(` `)
 	//line metrics/metrics.qtpl:7
-	qw422016.N().D(m.Timeouts)
+	qw422016.N().D(int(m.Timeouts))
 	//line metrics/metrics.qtpl:7
 	qw422016.N().S(`
 `)
@@ -63,7 +63,7 @@ func (m *Metrics) StreamPrometheus(qw422016 *qt422016.Writer) {
 	//line metrics/metrics.qtpl:10
 	qw422016.N().S(` `)
 	//line metrics/metrics.qtpl:10
-	qw422016.N().D(m.Errors)
+	qw422016.N().D(int(m.Errors))
 	//line metrics/metrics.qtpl:10
 	qw422016.N().S(`
 `)
@@ -80,7 +80,7 @@ func (m *Metrics) StreamPrometheus(qw422016 *qt422016.Writer) {
 	//line metrics/metrics.qtpl:13
 	qw422016.N().S(` `)
 	//line metrics/metrics.qtpl:13
-	qw422016.N().D(m.RequestSum)
+	qw422016.N().D(int(m.RequestSum))
 	//line metrics/metrics.qtpl:13
 	qw422016.N().S(`
 `)
@@ -101,31 +101,65 @@ func (m *Metrics) StreamPrometheus(qw422016 *qt422016.Writer) {
 	//line metrics/metrics.qtpl:16
 	qw422016.N().S(`
 `)
-//line metrics/metrics.qtpl:17
+	//line metrics/metrics.qtpl:17
+	qw422016.N().S(`
+`)
+	//line metrics/metrics.qtpl:17
+	qw422016.N().S(`# TYPE bytesWritten counter`)
+	//line metrics/metrics.qtpl:18
+	qw422016.N().S(`
+`)
+	//line metrics/metrics.qtpl:18
+	qw422016.N().S(`bytesWritten`)
+	//line metrics/metrics.qtpl:19
+	qw422016.N().S(` `)
+	//line metrics/metrics.qtpl:19
+	qw422016.N().D(int(m.BytesWritten))
+	//line metrics/metrics.qtpl:19
+	qw422016.N().S(`
+`)
+	//line metrics/metrics.qtpl:20
+	qw422016.N().S(`
+`)
+	//line metrics/metrics.qtpl:20
+	qw422016.N().S(`# TYPE bytesRead counter`)
+	//line metrics/metrics.qtpl:21
+	qw422016.N().S(`
+`)
+	//line metrics/metrics.qtpl:21
+	qw422016.N().S(`bytesRead`)
+	//line metrics/metrics.qtpl:22
+	qw422016.N().S(` `)
+	//line metrics/metrics.qtpl:22
+	qw422016.N().D(int(m.BytesRead))
+	//line metrics/metrics.qtpl:22
+	qw422016.N().S(`
+`)
+//line metrics/metrics.qtpl:23
 }
 
-//line metrics/metrics.qtpl:17
+//line metrics/metrics.qtpl:23
 func (m *Metrics) WritePrometheus(qq422016 qtio422016.Writer) {
-	//line metrics/metrics.qtpl:17
+	//line metrics/metrics.qtpl:23
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line metrics/metrics.qtpl:17
+	//line metrics/metrics.qtpl:23
 	m.StreamPrometheus(qw422016)
-	//line metrics/metrics.qtpl:17
+	//line metrics/metrics.qtpl:23
 	qt422016.ReleaseWriter(qw422016)
-//line metrics/metrics.qtpl:17
+//line metrics/metrics.qtpl:23
 }
 
-//line metrics/metrics.qtpl:17
+//line metrics/metrics.qtpl:23
 func (m *Metrics) Prometheus() string {
-	//line metrics/metrics.qtpl:17
+	//line metrics/metrics.qtpl:23
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line metrics/metrics.qtpl:17
+	//line metrics/metrics.qtpl:23
 	m.WritePrometheus(qb422016)
-	//line metrics/metrics.qtpl:17
+	//line metrics/metrics.qtpl:23
 	qs422016 := string(qb422016.B)
-	//line metrics/metrics.qtpl:17
+	//line metrics/metrics.qtpl:23
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line metrics/metrics.qtpl:17
+	//line metrics/metrics.qtpl:23
 	return qs422016
-//line metrics/metrics.qtpl:17
+//line metrics/metrics.qtpl:23
 }
