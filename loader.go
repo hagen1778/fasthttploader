@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"sync"
 	"time"
 	"strings"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"github.com/hagen1778/fasthttploader/metrics"
 	"github.com/hagen1778/fasthttploader/pushgateway"
 	"sync/atomic"
+	"sync"
 )
 
 func (l *Loader) startProgress() {
@@ -36,37 +36,84 @@ type Loader struct {
 	// Duration is the duration of test running.
 	Duration time.Duration
 
+	prevQps	int
 	host    string
+	workers []*metrics.Worker
+	jobsch chan struct{}
+	throttle <-chan time.Time
+
+	sync.Mutex
 }
 
 var stopCh = make(chan struct{})
 var m *metrics.Metrics
 func (l *Loader) Run() {
 	l.host = convertHost(l.Request)
+	multiplier = 1.2
+	fmt.Printf("Begin with:\n host: %s\nQPS:%d\nWorkers: %d\n", l.host, l.Qps, len(l.workers))
 	pushgateway.Init()
-
 	m = &metrics.Metrics{}
 	go l.startCountdown()
-	l.runWorkers()
+	l.load()
 }
 
 func (l *Loader) startCountdown(){
 	l.startProgress()
 	timeout := time.After(l.Duration)
-	tick := time.Tick(l.Duration/50)
+	tick := time.Tick(l.Duration/100)
 	for {
 		select {
 		case <-timeout:
 			fmt.Println("Timeout")
 			stopCh <- struct{}{}
 		case <-tick:
-			if err := pushgateway.Push(m); err != nil {
-				fmt.Printf("%s\n", err)
-			}
+			l.Lock()
+			l.calibrate()
+			fmt.Printf(" >> Num of cons: %d; Req done: %d\n", m.OpenConns, m.RequestSum)
+			l.Unlock()
+			//if err := pushgateway.Push(m); err != nil {
+			//	fmt.Printf("%s\n", err)
+			//}
 		}
 	}
 
 	l.finalizeProgress()
+}
+
+var multiplier float64
+
+func (l *Loader) calibrate(){
+	if !isFlawed() && l.Qps < 10000000 {
+		if len(l.jobsch) > 0 {
+			go l.runWorker()
+			multiplier = 1
+			l.Qps = l.prevQps
+			//if l.prevQps == l.Qps {
+				//fmt.Printf("Eq: %f", math.Abs(1-(multiplier/100)) * 0.1)
+				//multiplier -= math.Abs(1-(multiplier/100)) * 0.1
+
+			//}
+		} else {
+			multiplier += (1-(multiplier/100)) * 0.1
+			l.prevQps = l.Qps
+		}
+
+		fmt.Printf("[ Multiplier = %f ]", multiplier)
+		l.adjustQPS()
+		fmt.Println("------------")
+		fmt.Printf("QPS was increased to: %d\nWorkers: %d\nJobsch len: %d\n", l.Qps, len(l.workers), len(l.jobsch))
+		fmt.Println("------------")
+	}
+}
+
+func (l *Loader) adjustQPS() {
+	l.Qps = int(float64(l.Qps) * multiplier)
+	l.throttle = time.Tick(time.Duration(1e6/(l.Qps)) * time.Microsecond)
+}
+
+const flawLimit = 10
+func isFlawed() bool {
+	return m.RequestSum > 0 && (int((m.Errors/m.RequestSum) * 100) > flawLimit)
 }
 
 func convertHost(req *fasthttp.Request) string {
@@ -89,13 +136,17 @@ func convertHost(req *fasthttp.Request) string {
 
 	return addr
 }
+func (l *Loader) runWorker() {
+	//TODO: add support of N workers createion
+	w := metrics.NewWorker(l.host, m)
 
-func (l *Loader) runWorker(ch chan struct{}) {
-	w := metrics.Worker(l.host, m)
+	l.Lock()
+	l.workers = append(l.workers, w)
+	l.Unlock()
+
 	var resp fasthttp.Response
 	req := cloneRequest(l.Request)
-
-	for range ch {
+	for range l.jobsch {
 		s := time.Now()
 		err := w.SendRequest(req, &resp)
 		if err != nil {
@@ -111,37 +162,26 @@ func (l *Loader) runWorker(ch chan struct{}) {
 }
 
 const jobCapacity = 10000
-func (l *Loader) runWorkers() {
-	var wg sync.WaitGroup
-	wg.Add(10)
-
-	var throttle <-chan time.Time
+func (l *Loader) load() {
 	if l.Qps > 0 {
-		throttle = time.Tick(time.Duration(1e6/(l.Qps)) * time.Microsecond)
+		l.throttle = time.Tick(time.Duration(1e6/(l.Qps)) * time.Microsecond)
 	}
 
-	jobsch := make(chan struct{}, jobCapacity)
-	for i := 0; i < 10; i++ {
-		go func() {
-			l.runWorker(jobsch)
-			wg.Done()
-		}()
-	}
-
+	l.jobsch = make(chan struct{}, jobCapacity)
+	go l.runWorker()
 	for {
 		select {
 		case <-stopCh:
-			close(jobsch)
+			close(l.jobsch)
 			return
 		default:
 			if l.Qps > 0 {
-				<-throttle
+				<-l.throttle
 			}
-			jobsch <- struct{}{}
+			l.jobsch <- struct{}{}
 		}
 	}
-	close(jobsch)
-	wg.Wait()
+	close(l.jobsch)
 }
 
 func cloneRequest(r *fasthttp.Request) *fasthttp.Request {

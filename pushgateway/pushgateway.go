@@ -32,7 +32,6 @@ func Push(m *metrics.Metrics) error {
 	metrics := m.Prometheus()
 	m.Unlock()
 
-	fmt.Printf("%#v \n", m)
 	req.Header.SetMethod("POST")
 	req.SetBodyString(metrics)
 	req.SetRequestURI(requestURI)

@@ -18,7 +18,7 @@ var (
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 
-	q = flag.Int("q", 0, "")
+	q = flag.Int("q", 100, "")
 	d = flag.Duration("d", 5*time.Second, "")
 
 	disableKeepAlive  = flag.Bool("k", false, "")

@@ -13,7 +13,7 @@ import (
 
 var (
 	httpClientRequestTimeout  = flag.Duration("httpClientRequestTimeout", time.Second*10, "Maximum time to wait for http response")
-	httpClientKeepAlivePeriod = flag.Duration("httpClientKeepAlivePeriod", 0, "Interval for sending keep-alive messages on keepalive connections. Zero disables keep-alive messages")
+	httpClientKeepAlivePeriod = flag.Duration("httpClientKeepAlivePeriod", time.Second*5, "Interval for sending keep-alive messages on keepalive connections. Zero disables keep-alive messages")
 	httpClientReadBufferSize  = flag.Int("httpClientReadBufferSize", 8*1024, "Per-connection read buffer size for httpclient")
 	httpClientWriteBufferSize = flag.Int("httpClientWriteBufferSize", 8*1024, "Per-connection write buffer size for httpclient")
 )
@@ -38,14 +38,14 @@ type connStats struct {
 	ReadError    uint64
 }
 
-type worker struct {
+type Worker struct {
 	host string
 	hc *fasthttp.HostClient
 }
 
 var m *Metrics
 
-func Worker(host string, metric *Metrics) *worker {
+func NewWorker(host string, metric *Metrics) *Worker {
 	if m == nil {
 		m = metric
 	}
@@ -54,14 +54,14 @@ func Worker(host string, metric *Metrics) *worker {
 		Addr:   host,
 		Dial:	dial,
 	}
-	w := &worker{
+	w := &Worker{
 		hc: hc,
 	}
 	return w
 }
 
-func (w *worker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
-	//TODO: rm, if nothing additional will not appear
+func (w *Worker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
+	//TODO: Do timeout
 	return w.hc.Do(req, resp)
 }
 
