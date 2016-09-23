@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"github.com/valyala/fasthttp"
 	"regexp"
 	"time"
+
+	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -55,7 +56,7 @@ func main(){
 
 const headerRegexp = "^([\\w-]+):\\s*(.+)"
 
-func formRequestHeader() fasthttp.RequestHeader{
+func formRequestHeader() fasthttp.RequestHeader {
 	var header fasthttp.RequestHeader
 	var url string
 	// set content-type

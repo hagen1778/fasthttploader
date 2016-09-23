@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
 	"strings"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/hagen1778/fasthttploader/metrics"
-	"fmt"
 )
 
 func (l *Loader) startProgress() {
@@ -34,7 +34,6 @@ type Loader struct {
 	// Duration is the duration of test running.
 	Duration time.Duration
 
-
 	host    string
 }
 
@@ -42,6 +41,7 @@ var stopCh = make(chan struct{})
 var m *metrics.M
 func (l *Loader) Run() {
 	l.host = convertHost(l.Request)
+	pushgateway.Init()
 
 	m = &metrics.M{}
 	go l.startCountdown()
@@ -58,7 +58,7 @@ func (l *Loader) startCountdown(){
 			fmt.Println("Timeout")
 			stopCh <- struct{}{}
 		case <-tick:
-			if err := push(); err != nil {
+			if err := pushgateway.Push(m); err != nil {
 				fmt.Printf("%s\n", err)
 			}
 		}
@@ -89,7 +89,7 @@ func convertHost(req *fasthttp.Request) string {
 }
 
 func (l *Loader) runWorker(ch chan struct{}) {
-	w := Worker(l.host)
+	w := metrics.Worker(l.host)
 	var resp fasthttp.Response
 	req := cloneRequest(l.Request)
 
@@ -140,7 +140,7 @@ func (l *Loader) runWorkers() {
 			jobsch <- struct{}{}
 		}
 	}
-	//close(jobsch)
+	close(jobsch)
 	wg.Wait()
 }
 

@@ -1,9 +1,11 @@
-package main
+package pushgateway
 
 import (
 	"flag"
-	"github.com/valyala/fasthttp"
 	"fmt"
+
+	"github.com/valyala/fasthttp"
+	"github.com/hagen1778/fasthttploader/metrics"
 )
 
 var (
@@ -13,13 +15,16 @@ var (
 	pushGatewayClient *fasthttp.HostClient
 )
 
-func init() {
+var requestURI string
+
+func Init() {
+	requestURI = fmt.Sprintf("/metrics/job/%s", *jobName)
 	pushGatewayClient = &fasthttp.HostClient{
 		Addr: *gatewayAddr,
 	}
 }
 
-func push() error {
+func Push(m *metrics.Metrics) error {
 	var req fasthttp.Request
 	var resp fasthttp.Response
 
@@ -27,9 +32,10 @@ func push() error {
 	metrics := m.Prometheus()
 	m.Unlock()
 
+	fmt.Fprint("%#v \n", m)
 	req.Header.SetMethod("POST")
 	req.SetBodyString(metrics)
-	req.SetRequestURI(fmt.Sprintf("/metrics/job/%s", *jobName))
+	req.SetRequestURI(requestURI)
 	req.Header.SetHost(*gatewayAddr)
 	err := pushGatewayClient.Do(&req, &resp)
 	if err != nil {
