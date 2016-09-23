@@ -1,5 +1,5 @@
 {% stripspace %}
-{% func (m *M) Prometheus() %}
+{% func (m *Metrics) Prometheus() %}
 	# TYPE connections counter {% newline %}
 	connections {% space %} {%d= m.Connections %} {% newline %}
 	{% newline %}

@@ -18,7 +18,7 @@ var (
 )
 
 //line metrics/metrics.qtpl:2
-func (m *M) StreamPrometheus(qw422016 *qt422016.Writer) {
+func (m *Metrics) StreamPrometheus(qw422016 *qt422016.Writer) {
 	//line metrics/metrics.qtpl:2
 	qw422016.N().S(`# TYPE connections counter`)
 	//line metrics/metrics.qtpl:3
@@ -105,7 +105,7 @@ func (m *M) StreamPrometheus(qw422016 *qt422016.Writer) {
 }
 
 //line metrics/metrics.qtpl:17
-func (m *M) WritePrometheus(qq422016 qtio422016.Writer) {
+func (m *Metrics) WritePrometheus(qq422016 qtio422016.Writer) {
 	//line metrics/metrics.qtpl:17
 	qw422016 := qt422016.AcquireWriter(qq422016)
 	//line metrics/metrics.qtpl:17
@@ -116,7 +116,7 @@ func (m *M) WritePrometheus(qq422016 qtio422016.Writer) {
 }
 
 //line metrics/metrics.qtpl:17
-func (m *M) Prometheus() string {
+func (m *Metrics) Prometheus() string {
 	//line metrics/metrics.qtpl:17
 	qb422016 := qt422016.AcquireByteBuffer()
 	//line metrics/metrics.qtpl:17
