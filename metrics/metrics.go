@@ -127,7 +127,7 @@ func (c *hostConn) Write(p []byte) (int, error) {
 	n, err := c.Conn.Write(p)
 	atomic.AddUint64(&m.BytesWritten, uint64(n))
 	if err != nil {
-		atomic.AddUint64(&cs.WriteError, 1)
+		atomic.AddUint64(&m.WriteError, 1)
 	}
 	return n, err
 }
