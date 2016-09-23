@@ -10,6 +10,7 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/hagen1778/fasthttploader/metrics"
+	"github.com/hagen1778/fasthttploader/pushgateway"
 )
 
 func (l *Loader) startProgress() {
@@ -38,12 +39,12 @@ type Loader struct {
 }
 
 var stopCh = make(chan struct{})
-var m *metrics.M
+var m *metrics.Metrics
 func (l *Loader) Run() {
 	l.host = convertHost(l.Request)
 	pushgateway.Init()
 
-	m = &metrics.M{}
+	m = &metrics.Metrics{}
 	go l.startCountdown()
 	l.runWorkers()
 }
@@ -89,7 +90,7 @@ func convertHost(req *fasthttp.Request) string {
 }
 
 func (l *Loader) runWorker(ch chan struct{}) {
-	w := metrics.Worker(l.host)
+	w := metrics.Worker(l.host, m)
 	var resp fasthttp.Response
 	req := cloneRequest(l.Request)
 
