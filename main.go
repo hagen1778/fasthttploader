@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/valyala/fasthttp"
+	"log"
+	"runtime/pprof"
 )
 
 var (
@@ -18,11 +20,16 @@ var (
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 
-	q = flag.Int("q", 100, "")
+	q = flag.Int("q", 300, "")
 	d = flag.Duration("d", 5*time.Second, "")
+	t = flag.Duration("t", 5*time.Second, "")
 
 	disableKeepAlive  = flag.Bool("k", false, "")
 	disableCompression = flag.Bool("disable-compression", false, "")
+
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	memprofile = flag.String("memprofile", "", "write memory profile to this file")
+
 )
 
 var usage = `Usage: boom [options...] <url>
@@ -30,6 +37,7 @@ var usage = `Usage: boom [options...] <url>
 Options:
   -q  Rate limit, in seconds (QPS).
   -k  disable keepalive.
+  -t  request timeout. Default is equal to 5s.
 `
 
 func main(){
@@ -40,6 +48,15 @@ func main(){
 	flag.Parse()
 	if flag.NArg() < 1 {
 		usageAndExit("")
+	}
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
 
 	var req fasthttp.Request
@@ -59,9 +76,7 @@ const headerRegexp = "^([\\w-]+):\\s*(.+)"
 func formRequestHeader() fasthttp.RequestHeader {
 	var header fasthttp.RequestHeader
 	var url string
-	// set content-type
 	header.SetContentType(*contentType)
-	// set any other additional headers
 	if *headers != "" {
 		headers := strings.Split(*headers, ";")
 		for _, h := range headers {

@@ -12,9 +12,13 @@ import (
 	"github.com/hagen1778/fasthttploader/pushgateway"
 	"sync/atomic"
 	"sync"
+	//"math"
+	"os"
+	"runtime/pprof"
 )
 
 func (l *Loader) startProgress() {
+	l.t = time.Now()
 	fmt.Println("Start loading")
 }
 
@@ -40,27 +44,38 @@ type Loader struct {
 	host    string
 	workers []*metrics.Worker
 	jobsch chan struct{}
-	throttle <-chan time.Time
+	t time.Time
+	er uint64
 
 	sync.Mutex
 }
-
 var stopCh = make(chan struct{})
+var throttle = make(<-chan time.Time)
 var m *metrics.Metrics
 func (l *Loader) Run() {
 	l.host = convertHost(l.Request)
-	multiplier = 1.2
-	fmt.Printf("Begin with:\n host: %s\nQPS:%d\nWorkers: %d\n", l.host, l.Qps, len(l.workers))
+	multiplier = 0.1
+	l.prevQps = l.Qps
+	fmt.Printf("Begin with:\n host: %s\nQPS:%d\n", l.host, l.Qps)
 	pushgateway.Init()
 	m = &metrics.Metrics{}
 	go l.startCountdown()
 	l.load()
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.WriteHeapProfile(f)
+		f.Close()
+		return
+	}
 }
 
 func (l *Loader) startCountdown(){
 	l.startProgress()
 	timeout := time.After(l.Duration)
-	tick := time.Tick(l.Duration/100)
+	tick := time.Tick(500*time.Millisecond)
 	for {
 		select {
 		case <-timeout:
@@ -69,8 +84,9 @@ func (l *Loader) startCountdown(){
 		case <-tick:
 			l.Lock()
 			l.calibrate()
-			fmt.Printf(" >> Num of cons: %d; Req done: %d\n", m.OpenConns, m.RequestSum)
 			l.Unlock()
+
+
 			//if err := pushgateway.Push(m); err != nil {
 			//	fmt.Printf("%s\n", err)
 			//}
@@ -83,37 +99,53 @@ func (l *Loader) startCountdown(){
 var multiplier float64
 
 func (l *Loader) calibrate(){
-	if !isFlawed() && l.Qps < 10000000 {
-		if len(l.jobsch) > 0 {
-			go l.runWorker()
-			multiplier = 1
-			l.Qps = l.prevQps
-			//if l.prevQps == l.Qps {
-				//fmt.Printf("Eq: %f", math.Abs(1-(multiplier/100)) * 0.1)
-				//multiplier -= math.Abs(1-(multiplier/100)) * 0.1
+	since := time.Since(l.t).Seconds()
+	overflow := len(l.jobsch)
+	workersNum := len(l.workers)
 
-			//}
-		} else {
-			multiplier += (1-(multiplier/100)) * 0.1
-			l.prevQps = l.Qps
-		}
+	//if !l.isFlawed() {
+	//	if len(l.jobsch) > 1000 || overflow == jobCapacity {
+	//		if workersNum < 600 {
+	//			//l.runWorkers(10)
+	//		}
+	//	} else {
+	//		//multiplier += (1-(multiplier/100)) * 0.1
+	//		multiplier = math.Abs(multiplier)
+	//		l.prevQps = l.Qps
+	//		l.adjustQPS()
+	//	}
+	//} else {
+	//	fmt.Printf("Step back from %d to %d\n", l.Qps, l.prevQps)
+	//	l.Qps = l.prevQps
+	//	multiplier = math.Abs(multiplier) / -1.1
+	//	l.adjustQPS()
+	//	l.prevQps = l.Qps
+	//}
+	fmt.Println("------------")
+	fmt.Printf("[ Multiplier = %f ]\n", multiplier)
+	fmt.Printf("QPS was increased to: %d\nWorkers: %d\nJobsch len: %d\n", l.Qps, workersNum, overflow)
+	fmt.Printf(" >> Num of cons: %d; Req done: %d; Errors: %d; Timeouts: %d\n", m.OpenConns, m.RequestSum, m.Errors, m.Timeouts)
+	fmt.Printf(" >> Real Req/s: %f; Transfer/s: %f kb; overflow: %d\n", float64(m.RequestSum)/since, float64(m.BytesWritten)/(since*1024),len(l.jobsch))
+	fmt.Println("------------")
 
-		fmt.Printf("[ Multiplier = %f ]", multiplier)
-		l.adjustQPS()
-		fmt.Println("------------")
-		fmt.Printf("QPS was increased to: %d\nWorkers: %d\nJobsch len: %d\n", l.Qps, len(l.workers), len(l.jobsch))
-		fmt.Println("------------")
-	}
 }
 
 func (l *Loader) adjustQPS() {
-	l.Qps = int(float64(l.Qps) * multiplier)
-	l.throttle = time.Tick(time.Duration(1e6/(l.Qps)) * time.Microsecond)
+	return
+	if l.Qps < 100000 {
+		l.Qps = int(float64(l.Qps) * (1+multiplier))
+		throttle = time.Tick(time.Duration(1e6/l.Qps) * time.Microsecond)
+	}
 }
 
-const flawLimit = 10
-func isFlawed() bool {
-	return m.RequestSum > 0 && (int((m.Errors/m.RequestSum) * 100) > flawLimit)
+func (l *Loader) isFlawed() bool {
+	fmt.Printf("Check for errs - l.err: %d; m.err: %d\n", l.er, m.Errors)
+	if m.Errors > 0 && l.er != m.Errors {
+		l.er = m.Errors
+		return true
+	}
+
+	return false
 }
 
 func convertHost(req *fasthttp.Request) string {
@@ -136,8 +168,14 @@ func convertHost(req *fasthttp.Request) string {
 
 	return addr
 }
+
+func (l *Loader) runWorkers(n int) {
+	for i := 0; i<n; i++ {
+		go l.runWorker()
+	}
+}
+
 func (l *Loader) runWorker() {
-	//TODO: add support of N workers createion
 	w := metrics.NewWorker(l.host, m)
 
 	l.Lock()
@@ -148,7 +186,7 @@ func (l *Loader) runWorker() {
 	req := cloneRequest(l.Request)
 	for range l.jobsch {
 		s := time.Now()
-		err := w.SendRequest(req, &resp)
+		err := w.SendRequest(req, &resp, *t)
 		if err != nil {
 			if err == fasthttp.ErrTimeout {
 				atomic.AddUint64(&m.Timeouts, 1)
@@ -156,6 +194,8 @@ func (l *Loader) runWorker() {
 			fmt.Printf("Err while sending req: %s", err)
 			atomic.AddUint64(&m.Errors, 1)
 		}
+		//fmt.Println(resp.String())
+		//os.Exit(1)
 		atomic.AddUint64(&m.RequestDuration, uint64(time.Since(s)))
 		atomic.AddUint64(&m.RequestSum, 1)
 	}
@@ -163,24 +203,20 @@ func (l *Loader) runWorker() {
 
 const jobCapacity = 10000
 func (l *Loader) load() {
-	if l.Qps > 0 {
-		l.throttle = time.Tick(time.Duration(1e6/(l.Qps)) * time.Microsecond)
-	}
-
+	throttle = time.Tick(time.Duration(1e6/(l.Qps)) * time.Microsecond)
 	l.jobsch = make(chan struct{}, jobCapacity)
-	go l.runWorker()
+	l.runWorkers(140)
 	for {
 		select {
 		case <-stopCh:
 			close(l.jobsch)
 			return
 		default:
-			if l.Qps > 0 {
-				<-l.throttle
-			}
+			//<-throttle
 			l.jobsch <- struct{}{}
 		}
 	}
+	fmt.Println(">>>>>>>>>>>>>>>>>>>>>")
 	close(l.jobsch)
 }
 

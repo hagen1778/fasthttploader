@@ -60,9 +60,8 @@ func NewWorker(host string, metric *Metrics) *Worker {
 	return w
 }
 
-func (w *Worker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response) (err error) {
-	//TODO: Do timeout
-	return w.hc.Do(req, resp)
+func (w *Worker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response, t time.Duration) error {
+	return w.hc.DoTimeout(req, resp, t)
 }
 
 type hostConn struct {
