@@ -38,36 +38,9 @@ type connStats struct {
 	ReadError    uint64
 }
 
-type Worker struct {
-	host string
-	hc *fasthttp.HostClient
-}
-
-var m *Metrics
-
-func NewWorker(host string, metric *Metrics) *Worker {
-	if m == nil {
-		m = metric
-	}
-
-	hc := &fasthttp.HostClient{
-		Addr:   host,
-		Dial:	dial,
-	}
-	w := &Worker{
-		hc: hc,
-	}
-	return w
-}
-
-func (w *Worker) SendRequest(req *fasthttp.Request, resp *fasthttp.Response, t time.Duration) error {
-	return w.hc.DoTimeout(req, resp, t)
-}
-
 type hostConn struct {
 	net.Conn
 	addr   string
-	closed uint32
 }
 
 func dial(addr string) (net.Conn, error) {
