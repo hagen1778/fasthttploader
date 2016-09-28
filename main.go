@@ -20,7 +20,6 @@ var (
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 
-	q = flag.Int("q", 300, "")
 	d = flag.Duration("d", 5*time.Second, "")
 	t = flag.Duration("t", 5*time.Second, "")
 
@@ -35,7 +34,6 @@ var (
 var usage = `Usage: boom [options...] <url>
 
 Options:
-  -q  Rate limit, in seconds (QPS).
   -k  disable keepalive.
   -t  request timeout. Default is equal to 5s.
 `
@@ -43,6 +41,7 @@ Options:
 func main(){
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
+		flag.PrintDefaults()
 	}
 
 	flag.Parse()
@@ -66,7 +65,6 @@ func main(){
 
 	(&Loader{
 		Request: 	&req,
-		Qps:     	*q,
 		Duration:     	*d,
 	}).Run()
 }
@@ -120,6 +118,4 @@ func usageAndExit(msg string) {
 		fmt.Fprintf(os.Stderr, "\n\n")
 	}
 	flag.Usage()
-	fmt.Fprintf(os.Stderr, "\n")
-	os.Exit(1)
 }

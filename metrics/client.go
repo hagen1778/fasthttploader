@@ -11,7 +11,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const jobCapacity = 100000
+const jobCapacity = 10000
 
 var m *Metrics
 
@@ -19,6 +19,7 @@ type Client struct {
 	Jobsch chan struct{}
 
 	workers []*worker
+	wg sync.WaitGroup
 
 	sync.Mutex
 }
@@ -51,21 +52,35 @@ func (c *Client) Metrics() *Metrics {
 	return m
 }
 
+func drainChan(ch chan struct{}) {
+	for {
+		select {
+		case <-ch:
+			continue
+		default:
+			return
+		}
+	}
+}
+
 func (c *Client) Flush() {
 	c.Lock()
 	defer c.Unlock()
 
+	drainChan(c.Jobsch)
 	close(c.Jobsch)
-	c.Jobsch = make(chan struct{}, jobCapacity)
 
-	time.Sleep(4*time.Second)
+	c.wg.Wait()
+	time.Sleep(2*t)
 
 	m = &Metrics{}
 	c.workers = c.workers[:0]
+	c.Jobsch = make(chan struct{}, jobCapacity)
 }
 
 func (c *Client) AddWorkers(n int) {
 	for i := 0; i < n; i++ {
+		c.wg.Add(1)
 		go c.AddWorker()
 	}
 }
@@ -83,6 +98,7 @@ func (c *Client) AddWorker() {
 	c.Unlock()
 
 	w.run(c.Jobsch)
+	c.wg.Done()
 }
 
 type worker struct{

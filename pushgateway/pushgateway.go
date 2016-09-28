@@ -28,9 +28,7 @@ func Push(m *metrics.Metrics) error {
 	var req fasthttp.Request
 	var resp fasthttp.Response
 
-	m.Lock()
 	metrics := m.Prometheus()
-	m.Unlock()
 
 	req.Header.SetMethod("POST")
 	req.SetBodyString(metrics)

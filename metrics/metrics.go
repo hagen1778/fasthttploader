@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"time"
-	"sync"
 	"sync/atomic"
 	"net"
 	"flag"
@@ -25,8 +24,6 @@ type Metrics struct {
 	RequestDuration	uint64
 
 	connStats
-
-	sync.Mutex
 }
 
 type connStats struct {
@@ -41,6 +38,8 @@ type connStats struct {
 type hostConn struct {
 	net.Conn
 	addr   string
+	closed uint32
+	m *Metrics
 }
 
 func dial(addr string) (net.Conn, error) {
@@ -53,10 +52,12 @@ func dial(addr string) (net.Conn, error) {
 		conn.Close()
 		return nil, err
 	}
+
 	atomic.AddUint64(&m.OpenConns, 1)
 	return &hostConn{
 		Conn: conn,
 		addr: addr,
+		m: m,
 	}, nil
 }
 
@@ -67,7 +68,6 @@ func setupTCPConn(conn net.Conn) error {
 	}
 
 	var err error
-
 	if *httpClientReadBufferSize > 0 {
 		if err = c.SetReadBuffer(*httpClientReadBufferSize); err != nil {
 			return err
@@ -89,25 +89,28 @@ func setupTCPConn(conn net.Conn) error {
 	return nil
 }
 
-func (c *hostConn) Close() error {
-	atomic.AddUint64(&m.OpenConns, ^uint64(0))
-	return c.Conn.Close()
+func (hc *hostConn) Close() error {
+	if atomic.AddUint32(&hc.closed, 1) == 1 {
+		atomic.AddUint64(&hc.m.OpenConns, ^uint64(0))
+	}
+
+	return hc.Conn.Close()
 }
 
-func (c *hostConn) Write(p []byte) (int, error) {
-	n, err := c.Conn.Write(p)
-	atomic.AddUint64(&m.BytesWritten, uint64(n))
+func (hc *hostConn) Write(p []byte) (int, error) {
+	n, err := hc.Conn.Write(p)
+	atomic.AddUint64(&hc.m.BytesWritten, uint64(n))
 	if err != nil {
-		atomic.AddUint64(&m.WriteError, 1)
+		atomic.AddUint64(&hc.m.WriteError, 1)
 	}
 	return n, err
 }
 
-func (c *hostConn) Read(p []byte) (int, error) {
-	n, err := c.Conn.Read(p)
-	atomic.AddUint64(&m.BytesRead, uint64(n))
+func (hc *hostConn) Read(p []byte) (int, error) {
+	n, err := hc.Conn.Read(p)
+	atomic.AddUint64(&hc.m.BytesRead, uint64(n))
 	if err != nil && err != io.EOF {
-		atomic.AddUint64(&m.ReadError, 1)
+		atomic.AddUint64(&hc.m.ReadError, 1)
 	}
 	return n, err
 }
