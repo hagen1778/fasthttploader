@@ -127,9 +127,9 @@ func (l *Loader) makeTest() {
 			case <-stateTick:
 				l.printState()
 
-			if err := pushgateway.Push(c.Metrics()); err != nil {
-				fmt.Printf("%s\n", err)
-			}
+			//if err := pushgateway.Push(c.Metrics()); err != nil {
+			//	fmt.Printf("%s\n", err)
+			//}
 			}
 		}
 	}()
@@ -147,16 +147,15 @@ func (l *Loader) calibrateQPS() {
 			if c.Amount() < 600 {
 				c.AddWorkers(100)
 			}
-			if err := pushgateway.Push(c.Metrics()); err != nil {
-				fmt.Printf("%s\n", err)
-			}
+			//if err := pushgateway.Push(c.Metrics()); err != nil {
+			//	fmt.Printf("%s\n", err)
+			//}
 		case <-timeout:
-			m := c.Metrics()
-			prev.flawed = (m.Errors/m.RequestSum)*100 > 2 // just more than 3% of errors
+			prev.flawed = (metrics.Errors()/metrics.RequestSum())*100 > 2 // just more than 3% of errors
 			// TODO: move somewhere calibrate time
-			prev.qps = rate.Limit(float64(m.RequestSum)/10)
+			prev.qps = rate.Limit(float64(metrics.RequestSum())/10)
 			prev.workers = c.Amount()
-			fmt.Printf("Average QPS for %d workers is: %f; Errs: %d; Req done: %d\n", c.Amount(), prev.qps, m.Errors, m.RequestSum)
+			fmt.Printf("Average QPS for %d workers is: %f; Errs: %d; Req done: %d\n", c.Amount(), prev.qps, metrics.Errors(), metrics.RequestSum())
 			c.Flush()
 			return
 		default:
@@ -178,9 +177,9 @@ func (l *Loader) startCountdown(d time.Duration){
 		case <-tick:
 			l.calibrate()
 
-			if err := pushgateway.Push(c.Metrics()); err != nil {
-				fmt.Printf("%s\n", err)
-			}
+			//if err := pushgateway.Push(c.Metrics()); err != nil {
+			//	fmt.Printf("%s\n", err)
+			//}
 		}
 	}
 }
@@ -220,8 +219,8 @@ func (l *Loader) printState() {
 	fmt.Println("------------")
 	fmt.Printf("[ Multiplier = %f ]\n", multiplier)
 	fmt.Printf("QPS was increased to: %f\nWorkers: %d\nJobsch len: %d\n", l.Qps, c.Amount(), len(c.Jobsch))
-	fmt.Printf(" >> Num of cons: %d; Req done: %d; Errors: %d; Timeouts: %d\n", c.Metrics().OpenConns, c.Metrics().RequestSum, c.Metrics().Errors, c.Metrics().Timeouts)
-	fmt.Printf(" >> Real Req/s: %f; Transfer/s: %f kb;\n", float64(c.Metrics().RequestSum)/since, float64(c.Metrics().BytesWritten)/(since*1024))
+	fmt.Printf(" >> Num of cons: %d; Req done: %d; Errors: %d; Timeouts: %d\n", metrics.ConnOpen(), metrics.RequestSum(), metrics.Errors(), metrics.Timeouts())
+	fmt.Printf(" >> Real Req/s: %f; Transfer/s: %f kb;\n", float64(metrics.RequestSum())/since, float64(metrics.BytesWritten())/(since*1024))
 	fmt.Println("------------")
 }
 
@@ -238,8 +237,8 @@ func (l *Loader) setQPS(qps rate.Limit) {
 }
 
 func (l *Loader) isFlawed() bool {
-	if c.Metrics().Errors > 0 && l.er != c.Metrics().Errors {
-		l.er = c.Metrics().Errors
+	if metrics.Errors() > 0 && l.er != metrics.Errors() {
+		l.er = metrics.Errors()
 		return true
 	}
 

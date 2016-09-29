@@ -1,19 +1,28 @@
 package metrics
 
 import (
-	"sync/atomic"
 	"time"
 	"sync"
 	"log"
 	"strings"
 	"strconv"
+	"net"
+	"sync/atomic"
+	"flag"
 
 	"github.com/valyala/fasthttp"
+	"io"
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+var (
+	httpClientRequestTimeout  = flag.Duration("httpClientRequestTimeout", time.Second*10, "Maximum time to wait for http response")
+	httpClientKeepAlivePeriod = flag.Duration("httpClientKeepAlivePeriod", time.Second*5, "Interval for sending keep-alive messages on keepalive connections. Zero disables keep-alive messages")
+	httpClientReadBufferSize  = flag.Int("httpClientReadBufferSize", 8*1024, "Per-connection read buffer size for httpclient")
+	httpClientWriteBufferSize = flag.Int("httpClientWriteBufferSize", 8*1024, "Per-connection write buffer size for httpclient")
 )
 
 const jobCapacity = 10000
-
-var m *Metrics
 
 type Client struct {
 	Jobsch chan struct{}
@@ -31,9 +40,9 @@ var (
 )
 
 func Init(r *fasthttp.Request, timeout time.Duration) *Client {
+	register()
 	request = r
 	host = convertHost(request)
-	m = &Metrics{}
 	t = timeout
 
 	return &Client{
@@ -46,10 +55,6 @@ func (c *Client) Amount() int {
 	defer c.Unlock()
 
 	return len(c.workers)
-}
-
-func (c *Client) Metrics() *Metrics {
-	return m
 }
 
 func drainChan(ch chan struct{}) {
@@ -73,7 +78,7 @@ func (c *Client) Flush() {
 	c.wg.Wait()
 	time.Sleep(2*t)
 
-	m = &Metrics{}
+	flushMetrics()
 	c.workers = c.workers[:0]
 	c.Jobsch = make(chan struct{}, jobCapacity)
 }
@@ -113,17 +118,105 @@ func (w *worker) run(ch chan struct{}) {
 		err := w.DoTimeout(r, &resp, t)
 		if err != nil {
 			if err == fasthttp.ErrTimeout {
-				atomic.AddUint64(&m.Timeouts, 1)
+				timeouts.Inc()
 			}
 			//fmt.Printf("Err while sending req: %s", err)
-			atomic.AddUint64(&m.Errors, 1)
+			//atomic.AddUint64(&m.Errors, 1)
+			errors.Inc()
 		}
-		//fmt.Println(resp.String())
-		//os.Exit(1)
-		atomic.AddUint64(&m.RequestDuration, uint64(time.Since(s)))
-		atomic.AddUint64(&m.RequestSum, 1)
+		requestDuration.Observe(float64(time.Since(s)))
+		requestSum.Inc()
 	}
 }
+
+type hostConn struct {
+	net.Conn
+	addr   string
+	closed uint32
+	connOpen prometheus.Gauge
+	readError prometheus.Counter
+	writeError prometheus.Counter
+	bytesWritten prometheus.Counter
+	bytesRead prometheus.Counter
+}
+
+func dial(addr string) (net.Conn, error) {
+	conn, err := fasthttp.DialTimeout(addr, *httpClientRequestTimeout)
+	if err != nil {
+		return nil, err
+	}
+	if err = setupTCPConn(conn); err != nil {
+		connError.Inc()
+		conn.Close()
+		return nil, err
+	}
+
+	connOpen.Inc()
+	return &hostConn{
+		Conn: conn,
+		addr: addr,
+		connOpen: connOpen,
+		readError: readError,
+		writeError: writeError,
+		bytesWritten: bytesWritten,
+		bytesRead: bytesRead,
+	}, nil
+}
+
+func setupTCPConn(conn net.Conn) error {
+	c, ok := conn.(*net.TCPConn)
+	if !ok {
+		return nil
+	}
+
+	var err error
+	if *httpClientReadBufferSize > 0 {
+		if err = c.SetReadBuffer(*httpClientReadBufferSize); err != nil {
+			return err
+		}
+	}
+	if *httpClientWriteBufferSize > 0 {
+		if err = c.SetWriteBuffer(*httpClientWriteBufferSize); err != nil {
+			return err
+		}
+	}
+	if *httpClientKeepAlivePeriod > 0 {
+		if err = c.SetKeepAlive(true); err != nil {
+			return err
+		}
+		if err = c.SetKeepAlivePeriod(*httpClientKeepAlivePeriod); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (hc *hostConn) Close() error {
+	if atomic.AddUint32(&hc.closed, 1) == 1 {
+		hc.connOpen.Dec()
+	}
+
+	return hc.Conn.Close()
+}
+
+func (hc *hostConn) Write(p []byte) (int, error) {
+	n, err := hc.Conn.Write(p)
+	hc.bytesWritten.Add(float64(n))
+	if err != nil {
+		hc.writeError.Inc()
+	}
+	return n, err
+}
+
+func (hc *hostConn) Read(p []byte) (int, error) {
+	n, err := hc.Conn.Read(p)
+	hc.bytesRead.Add(float64(n))
+	if err != nil && err != io.EOF {
+		hc.readError.Inc()
+	}
+	return n, err
+}
+
 
 func cloneRequest(r *fasthttp.Request) *fasthttp.Request {
 	r2 := new(fasthttp.Request)

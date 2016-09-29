@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/valyala/fasthttp"
-	"github.com/hagen1778/fasthttploader/metrics"
 )
 
 var (
@@ -24,14 +23,14 @@ func Init() {
 	}
 }
 
-func Push(m *metrics.Metrics) error {
+func Push() error {
 	var req fasthttp.Request
 	var resp fasthttp.Response
 
-	metrics := m.Prometheus()
+	//metrics := m.Prometheus()
 
 	req.Header.SetMethod("POST")
-	req.SetBodyString(metrics)
+	//req.SetBodyString(metrics)
 	req.SetRequestURI(requestURI)
 	req.Header.SetHost(*gatewayAddr)
 	err := pushGatewayClient.Do(&req, &resp)

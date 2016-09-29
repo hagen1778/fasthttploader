@@ -1,116 +1,156 @@
 package metrics
 
 import (
-	"time"
-	"sync/atomic"
-	"net"
-	"flag"
-	"io"
-
-	"github.com/valyala/fasthttp"
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 )
 
 var (
-	httpClientRequestTimeout  = flag.Duration("httpClientRequestTimeout", time.Second*10, "Maximum time to wait for http response")
-	httpClientKeepAlivePeriod = flag.Duration("httpClientKeepAlivePeriod", time.Second*5, "Interval for sending keep-alive messages on keepalive connections. Zero disables keep-alive messages")
-	httpClientReadBufferSize  = flag.Int("httpClientReadBufferSize", 8*1024, "Per-connection read buffer size for httpclient")
-	httpClientWriteBufferSize = flag.Int("httpClientWriteBufferSize", 8*1024, "Per-connection write buffer size for httpclient")
+	requestDuration	prometheus.Summary
+	connOpen	prometheus.Gauge
+
+	timeouts 	prometheus.Counter
+	errors		prometheus.Counter
+	requestSum	prometheus.Counter
+	connError 	prometheus.Counter
+	bytesWritten 	prometheus.Counter
+	bytesRead 	prometheus.Counter
+	writeError 	prometheus.Counter
+	readError 	prometheus.Counter
 )
 
-type Metrics struct {
-	Timeouts	uint64
-	Errors		uint64
-	RequestSum	uint64
-	RequestDuration	uint64
+func initMetrics() {
+	timeouts = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "request_timeouts",
+			Help: "Number of timeouts returned by server",
+		},
+	)
 
-	connStats
+	errors = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "request_errors",
+			Help: "Number of errors returned by server. Including amount of timeouts",
+		},
+	)
+
+	requestSum = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "request_sum",
+			Help: "Total number of sent requests",
+		},
+	)
+
+	requestDuration = prometheus.NewSummary(
+		prometheus.SummaryOpts{
+			Name: "request_duration",
+			Help: "Latency of sent requests",
+		},
+	)
+
+	connOpen = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "conn_open",
+			Help: "Number of open connections",
+		},
+	)
+
+	connError = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "conn_errors",
+			Help: "Number of connections ended with error",
+		},
+	)
+
+	bytesWritten = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "bytes_written",
+			Help: "Amount of written bytes",
+		},
+	)
+
+	bytesRead = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "bytes_read",
+			Help: "Amount of read bytes",
+		},
+	)
+
+	writeError = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "request_write_errors",
+			Help: "Number of errors while writing",
+		},
+	)
+
+	readError = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "request_read_errors",
+			Help: "Number of errors while reading",
+		},
+	)
 }
 
-type connStats struct {
-	ConnectError uint64
-	OpenConns    uint64
-	BytesWritten uint64
-	BytesRead    uint64
-	WriteError   uint64
-	ReadError    uint64
+func register() {
+	initMetrics()
+	prometheus.MustRegister(timeouts)
+	prometheus.MustRegister(errors)
+	prometheus.MustRegister(requestSum)
+	prometheus.MustRegister(requestDuration)
+	prometheus.MustRegister(connOpen)
+	prometheus.MustRegister(connError)
+	prometheus.MustRegister(bytesWritten)
+	prometheus.MustRegister(bytesRead)
+	prometheus.MustRegister(writeError)
+	prometheus.MustRegister(readError)
 }
 
-type hostConn struct {
-	net.Conn
-	addr   string
-	closed uint32
-	m *Metrics
+func unregister() {
+	prometheus.Unregister(timeouts)
+	prometheus.Unregister(errors)
+	prometheus.Unregister(requestSum)
+	prometheus.Unregister(requestDuration)
+	prometheus.Unregister(connOpen)
+	prometheus.Unregister(connError)
+	prometheus.Unregister(bytesWritten)
+	prometheus.Unregister(bytesRead)
+	prometheus.Unregister(writeError)
+	prometheus.Unregister(readError)
 }
 
-func dial(addr string) (net.Conn, error) {
-	conn, err := fasthttp.DialTimeout(addr, *httpClientRequestTimeout)
-	if err != nil {
-		return nil, err
-	}
-	if err = setupTCPConn(conn); err != nil {
-		atomic.AddUint64(&m.ConnectError, 1)
-		conn.Close()
-		return nil, err
-	}
-
-	atomic.AddUint64(&m.OpenConns, 1)
-	return &hostConn{
-		Conn: conn,
-		addr: addr,
-		m: m,
-	}, nil
+func flushMetrics() {
+	unregister()
+	register()
 }
 
-func setupTCPConn(conn net.Conn) error {
-	c, ok := conn.(*net.TCPConn)
-	if !ok {
-		return nil
-	}
+var m = &dto.Metric{}
 
-	var err error
-	if *httpClientReadBufferSize > 0 {
-		if err = c.SetReadBuffer(*httpClientReadBufferSize); err != nil {
-			return err
-		}
-	}
-	if *httpClientWriteBufferSize > 0 {
-		if err = c.SetWriteBuffer(*httpClientWriteBufferSize); err != nil {
-			return err
-		}
-	}
-	if *httpClientKeepAlivePeriod > 0 {
-		if err = c.SetKeepAlive(true); err != nil {
-			return err
-		}
-		if err = c.SetKeepAlivePeriod(*httpClientKeepAlivePeriod); err != nil {
-			return err
-		}
-	}
-	return nil
+func Errors() uint64 {
+	errors.Write(m)
+	return uint64(*m.Counter.Value)
 }
 
-func (hc *hostConn) Close() error {
-	if atomic.AddUint32(&hc.closed, 1) == 1 {
-		atomic.AddUint64(&hc.m.OpenConns, ^uint64(0))
-	}
-
-	return hc.Conn.Close()
+func Timeouts() uint64 {
+	timeouts.Write(m)
+	return uint64(*m.Counter.Value)
 }
 
-func (hc *hostConn) Write(p []byte) (int, error) {
-	n, err := hc.Conn.Write(p)
-	atomic.AddUint64(&hc.m.BytesWritten, uint64(n))
-	if err != nil {
-		atomic.AddUint64(&hc.m.WriteError, 1)
-	}
-	return n, err
+func RequestSum() uint64 {
+	requestSum.Write(m)
+	return uint64(*m.Counter.Value)
 }
 
-func (hc *hostConn) Read(p []byte) (int, error) {
-	n, err := hc.Conn.Read(p)
-	atomic.AddUint64(&hc.m.BytesRead, uint64(n))
-	if err != nil && err != io.EOF {
-		atomic.AddUint64(&hc.m.ReadError, 1)
-	}
-	return n, err
+func BytesWritten() uint64 {
+	bytesWritten.Write(m)
+	return uint64(*m.Counter.Value)
+}
+
+func BytesRead() uint64 {
+	bytesRead.Write(m)
+	return uint64(*m.Counter.Value)
+}
+
+func ConnOpen() uint64 {
+	connOpen.Write(m)
+	return uint64(*m.Gauge.Value)
 }
