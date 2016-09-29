@@ -1,64 +1,24 @@
 {% import (
     "strings"
     "strconv"
+    "sync"
 ) %}
 
 {% code
 type Page struct {
     Title string
+
+    sync.Mutex
     Connections []uint64
+	RequestSum []uint64
+	Errors []uint64
+	Timeouts []uint64
+	Qps []uint64
 }
 %}
 
 {% func (p *Page) title() %}{%s p.Title %}{% endfunc %}
 
-{% func (p *Page) connectionsChart() %}
-	<script>
-	$(function () {
-    			$('#container').highcharts({
-                				title: {
-                					text: 'Connections',
-                					x: -20 //center
-                				},
-                				subtitle: {
-                					text: 'subtitle',
-                					x: -20
-                				},
-                				xAxis: {
-                					tickInterval: 500, // one week
-                					tickWidth: 0,
-                					gridLineWidth: 1,
-                					labels: {
-                						align: 'left',
-                						x: 3,
-                						y: -3
-                					}
-                				},
-                				yAxis: {
-                					title: {
-                						text: 'Number'
-                					},
-                					plotLines: [{
-                						value: 0,
-                						width: 1,
-                						color: '#808080'
-                					}]
-                				},
-                				legend: {
-                					layout: 'vertical',
-                					align: 'right',
-                					verticalAlign: 'middle',
-                					borderWidth: 0
-                				},
-                				series: [{
-                					name: 'Qps',
-                					data: [{%= SliceToString(p.Connections) %}]
-                				}]
-                			});
-    		});
-    </script>
-   	<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
-{% endfunc %}
 {% func PrintPage(p *Page) %}
 <html>
 	<head>
@@ -69,6 +29,8 @@ type Page struct {
 	</head>
 	 <body>
 		{%= p.connectionsChart() %}
+		{%= p.qpsChart() %}
+		{%= p.ErrorsChart() %}
 	</body>
 </html>
 {% endfunc %}
@@ -84,3 +46,151 @@ type Page struct {
     {%s= strings.Join(str[:],",") %}
 {% endfunc %}
 {% endstripspace %}
+
+
+{% func (p *Page) connectionsChart() %}
+	<script>
+	$(function () {
+    			$('#container').highcharts({
+                				title: {
+                					text: 'Connections',
+                					x: -20 //center
+                				},
+                				subtitle: {
+                					text: 'subtitle',
+                					x: -20
+                				},
+                				xAxis: {
+                					tickInterval: 500,
+                					tickWidth: 0,
+                					gridLineWidth: 1,
+                					labels: {
+                						align: 'left',
+                						x: 3,
+                						y: -3
+                					}
+                				},
+                				yAxis: {
+                					title: {
+                						text: 'N'
+                					},
+                					plotLines: [{
+                						value: 0,
+                						width: 1,
+                						color: '#808080'
+                					}]
+                				},
+                				legend: {
+                					layout: 'vertical',
+                					align: 'right',
+                					verticalAlign: 'middle',
+                					borderWidth: 0
+                				},
+                				series: [{
+                					name: 'Connections',
+                					data: [{%= SliceToString(p.Connections) %}]
+                				}]
+                			});
+    		});
+    </script>
+   	<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+{% endfunc %}
+
+{% func (p *Page) qpsChart() %}
+	<script>
+	$(function () {
+    			$('#qps').highcharts({
+                				title: {
+                					text: 'Qps',
+                					x: -20 //center
+                				},
+                				subtitle: {
+                					text: 'subtitle',
+                					x: -20
+                				},
+                				xAxis: {
+                					tickInterval: 500,
+                					tickWidth: 0,
+                					gridLineWidth: 1,
+                					labels: {
+                						align: 'left',
+                						x: 3,
+                						y: -3
+                					}
+                				},
+                				yAxis: {
+                					title: {
+                						text: 'N'
+                					},
+                					plotLines: [{
+                						value: 0,
+                						width: 1,
+                						color: '#808080'
+                					}]
+                				},
+                				legend: {
+                					layout: 'vertical',
+                					align: 'right',
+                					verticalAlign: 'middle',
+                					borderWidth: 0
+                				},
+                				series: [{
+                					name: 'Qps',
+                					data: [{%= SliceToString(p.Qps) %}]
+                				}]
+                			});
+    		});
+    </script>
+   	<div id="qps" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+{% endfunc %}
+
+{% func (p *Page) ErrorsChart() %}
+	<script>
+	$(function () {
+    			$('#errors').highcharts({
+                				title: {
+                					text: 'Errors, Timeouts',
+                					x: -20 //center
+                				},
+                				subtitle: {
+                					text: 'subtitle',
+                					x: -20
+                				},
+                				xAxis: {
+                					tickInterval: 500,
+                					tickWidth: 0,
+                					gridLineWidth: 1,
+                					labels: {
+                						align: 'left',
+                						x: 3,
+                						y: -3
+                					}
+                				},
+                				yAxis: {
+                					title: {
+                						text: 'N'
+                					},
+                					plotLines: [{
+                						value: 0,
+                						width: 1,
+                						color: '#808080'
+                					}]
+                				},
+                				legend: {
+                					layout: 'vertical',
+                					align: 'right',
+                					verticalAlign: 'middle',
+                					borderWidth: 0
+                				},
+                				series: [{
+                					name: 'Errors',
+                					data: [{%= SliceToString(p.Errors) %}]
+                				},{
+									name: 'Timeouts',
+									data: [{%= SliceToString(p.Timeouts) %}]
+								}]
+                			});
+    		});
+    </script>
+   	<div id="errors" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+{% endfunc %}

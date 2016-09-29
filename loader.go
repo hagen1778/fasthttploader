@@ -41,7 +41,6 @@ type Loader struct {
 	throttle *rate.Limiter
 
 	sync.Mutex
-	conns []uint64
 }
 type prevState struct {
 	// Qps is the rate limit.
@@ -54,10 +53,15 @@ type prevState struct {
 	flawed bool
 }
 
-var stopCh = make(chan struct{})
-var c *metrics.Client
-
+var (
+	stopCh = make(chan struct{})
+	c *metrics.Client
+	r *report.Page
+)
 func (l *Loader) Run() {
+	r = &report.Page{
+		Title: string(l.Request.URI().Host()),
+	}
 	c = metrics.Init(l.Request, *t)
 	pushgateway.Init()
 
@@ -120,6 +124,7 @@ func (l *Loader) makeTest() {
 				fmt.Println(" >> Timeout")
 				stopCh <- struct{}{}
 				l.finalizeProgress()
+				return
 			case <-stepTick:
 				if steps >= 10-1 {
 					continue
@@ -227,9 +232,13 @@ func (l *Loader) printState() {
 	fmt.Printf(" >> Real Req/s: %f; Transfer/s: %f kb;\n", float64(metrics.RequestSum())/since, float64(metrics.BytesWritten())/(since*1024))
 	fmt.Println("------------")
 
-	l.Lock()
-	l.conns = append(l.conns, metrics.ConnOpen())
-	l.Unlock()
+	r.Lock()
+	r.Connections = append(r.Connections, metrics.ConnOpen())
+	r.Errors = append(r.Errors, metrics.Errors())
+	r.Timeouts = append(r.Timeouts, metrics.Timeouts())
+	r.RequestSum = append(r.RequestSum, metrics.RequestSum())
+	r.Qps = append(r.Qps, uint64(l.Qps))
+	r.Unlock()
 }
 
 func (l *Loader) adjustQPS() {
@@ -271,17 +280,11 @@ func (l *Loader) load() {
 }
 
 func (l *Loader) makeReport() {
+	// TODO: took filename from flags
 	f, err := os.Create("report2.html")
 	if err != nil {
 		log.Fatalf("Error while trying to create file: %s", err)
 	}
 	defer f.Close()
-
-	p := &report.Page{
-		Title: "Pfff",
-		Connections: l.conns,
-	}
-
-	// TODO: took filename from flags
-	f.WriteString(report.PrintPage(p))
+	f.WriteString(report.PrintPage(r))
 }
