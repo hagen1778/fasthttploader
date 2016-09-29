@@ -1,0 +1,86 @@
+{% import (
+    "strings"
+    "strconv"
+) %}
+
+{% code
+type Page struct {
+    Title string
+    Connections []uint64
+}
+%}
+
+{% func (p *Page) title() %}{%s p.Title %}{% endfunc %}
+
+{% func (p *Page) connectionsChart() %}
+	<script>
+	$(function () {
+    			$('#container').highcharts({
+                				title: {
+                					text: 'Connections',
+                					x: -20 //center
+                				},
+                				subtitle: {
+                					text: 'subtitle',
+                					x: -20
+                				},
+                				xAxis: {
+                					tickInterval: 500, // one week
+                					tickWidth: 0,
+                					gridLineWidth: 1,
+                					labels: {
+                						align: 'left',
+                						x: 3,
+                						y: -3
+                					}
+                				},
+                				yAxis: {
+                					title: {
+                						text: 'Number'
+                					},
+                					plotLines: [{
+                						value: 0,
+                						width: 1,
+                						color: '#808080'
+                					}]
+                				},
+                				legend: {
+                					layout: 'vertical',
+                					align: 'right',
+                					verticalAlign: 'middle',
+                					borderWidth: 0
+                				},
+                				series: [{
+                					name: 'Qps',
+                					data: [{%= SliceToString(p.Connections) %}]
+                				}]
+                			});
+    		});
+    </script>
+   	<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+{% endfunc %}
+{% func PrintPage(p *Page) %}
+<html>
+	<head>
+		<title>{%= p.title() %}</title>
+		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+		<script type="text/javascript" src="https://code.highcharts.com/highcharts.js"></script>
+		<script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
+	</head>
+	 <body>
+		{%= p.connectionsChart() %}
+	</body>
+</html>
+{% endfunc %}
+
+{% stripspace %}
+{% func SliceToString(sl []uint64) %}
+    {% code
+    str := []string{}
+    for _, v := range sl {
+    	str = append(str, strconv.FormatInt(int64(v), 10))
+    }
+    %}
+    {%s= strings.Join(str[:],",") %}
+{% endfunc %}
+{% endstripspace %}

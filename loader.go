@@ -13,6 +13,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/hagen1778/fasthttploader/metrics"
 	"github.com/hagen1778/fasthttploader/pushgateway"
+	"github.com/hagen1778/fasthttploader/report"
 )
 
 func (l *Loader) startProgress() {
@@ -34,11 +35,13 @@ type Loader struct {
 
 	// Duration is the duration of test running.
 	Duration time.Duration
+
 	er uint64
 	t time.Time
 	throttle *rate.Limiter
 
 	sync.Mutex
+	conns []uint64
 }
 type prevState struct {
 	// Qps is the rate limit.
@@ -63,6 +66,7 @@ func (l *Loader) Run() {
 	fmt.Println("Adjustment Finished!")
 	time.Sleep(time.Second*4)
 	l.makeTest()
+	l.makeReport()
 
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
@@ -222,6 +226,10 @@ func (l *Loader) printState() {
 	fmt.Printf(" >> Num of cons: %d; Req done: %d; Errors: %d; Timeouts: %d\n", metrics.ConnOpen(), metrics.RequestSum(), metrics.Errors(), metrics.Timeouts())
 	fmt.Printf(" >> Real Req/s: %f; Transfer/s: %f kb;\n", float64(metrics.RequestSum())/since, float64(metrics.BytesWritten())/(since*1024))
 	fmt.Println("------------")
+
+	l.Lock()
+	l.conns = append(l.conns, metrics.ConnOpen())
+	l.Unlock()
 }
 
 func (l *Loader) adjustQPS() {
@@ -260,4 +268,20 @@ func (l *Loader) load() {
 			}
 		}
 	}
+}
+
+func (l *Loader) makeReport() {
+	f, err := os.Create("report2.html")
+	if err != nil {
+		log.Fatalf("Error while trying to create file: %s", err)
+	}
+	defer f.Close()
+
+	p := &report.Page{
+		Title: "Pfff",
+		Connections: l.conns,
+	}
+
+	// TODO: took filename from flags
+	f.WriteString(report.PrintPage(p))
 }
