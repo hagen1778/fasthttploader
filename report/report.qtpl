@@ -2,6 +2,7 @@
     "strings"
     "strconv"
     "sync"
+    "sort"
 ) %}
 
 {% code
@@ -14,10 +15,23 @@ type Page struct {
 	Errors []uint64
 	Timeouts []uint64
 	Qps []uint64
+	RequestDuration map[float64][]float64
 }
 %}
 
 {% func (p *Page) title() %}{%s p.Title %}{% endfunc %}
+
+{% func (p *Page) UpdateRequestDuration (d map[float64]float64) %}
+	{% code
+		for k, v := range d {
+			if _, ok := p.RequestDuration[k]; !ok {
+				p.RequestDuration[k] = make([]float64, 0)
+			}
+
+			p.RequestDuration[k] = append(p.RequestDuration[k], v)
+		}
+	%}
+{% endfunc %}
 
 {% func PrintPage(p *Page) %}
 <html>
@@ -31,12 +45,13 @@ type Page struct {
 		{%= p.connectionsChart() %}
 		{%= p.qpsChart() %}
 		{%= p.ErrorsChart() %}
+		{%= p.durationChart() %}
 	</body>
 </html>
 {% endfunc %}
 
 {% stripspace %}
-{% func SliceToString(sl []uint64) %}
+{% func Uint64SliceToString(sl []uint64) %}
     {% code
     str := []string{}
     for _, v := range sl {
@@ -47,6 +62,36 @@ type Page struct {
 {% endfunc %}
 {% endstripspace %}
 
+{% stripspace %}
+{% func Float64SliceToString(sl []float64) %}
+    {% code
+    str := []string{}
+    for _, v := range sl {
+    	str = append(str, strconv.FormatFloat(v, 'f', 8, 64))
+    }
+    %}
+    {%s= strings.Join(str[:],",") %}
+{% endfunc %}
+{% endstripspace %}
+
+{% stripspace %}
+{% func (p *Page) printDurationSeries() %}
+    {% code
+		var keys []float64
+        for k := range p.RequestDuration {
+            keys = append(keys, k)
+        }
+        sort.Float64s(keys)
+	%}
+	{% for i, k := range keys %}
+		{
+			name: '{%f= k %}',
+			data: [{%= Float64SliceToString(p.RequestDuration[k]) %}]
+		}
+		{% if i + 1 < len(keys) %},{% endif %}
+	{% endfor %}
+{% endfunc %}
+{% endstripspace %}
 
 {% func (p *Page) connectionsChart() %}
 	<script>
@@ -88,7 +133,7 @@ type Page struct {
                 				},
                 				series: [{
                 					name: 'Connections',
-                					data: [{%= SliceToString(p.Connections) %}]
+                					data: [{%= Uint64SliceToString(p.Connections) %}]
                 				}]
                 			});
     		});
@@ -136,7 +181,7 @@ type Page struct {
                 				},
                 				series: [{
                 					name: 'Qps',
-                					data: [{%= SliceToString(p.Qps) %}]
+                					data: [{%= Uint64SliceToString(p.Qps) %}]
                 				}]
                 			});
     		});
@@ -184,13 +229,60 @@ type Page struct {
                 				},
                 				series: [{
                 					name: 'Errors',
-                					data: [{%= SliceToString(p.Errors) %}]
+                					data: [{%= Uint64SliceToString(p.Errors) %}]
                 				},{
 									name: 'Timeouts',
-									data: [{%= SliceToString(p.Timeouts) %}]
+									data: [{%= Uint64SliceToString(p.Timeouts) %}]
 								}]
                 			});
     		});
     </script>
    	<div id="errors" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+{% endfunc %}
+
+{% func (p *Page) durationChart() %}
+	<script>
+	$(function () {
+    			$('#duration').highcharts({
+                				title: {
+                					text: 'Latency',
+                					x: -20 //center
+                				},
+                				subtitle: {
+                					text: 'subtitle',
+                					x: -20
+                				},
+                				xAxis: {
+                					tickInterval: 500,
+                					tickWidth: 0,
+                					gridLineWidth: 1,
+                					labels: {
+                						align: 'left',
+                						x: 3,
+                						y: -3
+                					}
+                				},
+                				yAxis: {
+                					title: {
+                						text: 'S'
+                					},
+                					plotLines: [{
+                						value: 0,
+                						width: 1,
+                						color: '#808080'
+                					}]
+                				},
+                				legend: {
+                					layout: 'vertical',
+                					align: 'right',
+                					verticalAlign: 'middle',
+                					borderWidth: 0
+                				},
+                				series: [
+                				{%= p.printDurationSeries() %}
+                				]
+                			});
+    		});
+    </script>
+   	<div id="duration" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
 {% endfunc %}

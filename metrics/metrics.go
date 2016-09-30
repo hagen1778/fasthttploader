@@ -45,6 +45,7 @@ func initMetrics() {
 		prometheus.SummaryOpts{
 			Name: "request_duration",
 			Help: "Latency of sent requests",
+			Objectives: map[float64]float64{0.5: 0.05, 0.75: 0.025, 0.8: 0.02, 0.9: 0.01, 0.99: 0.001},
 		},
 	)
 
@@ -153,4 +154,14 @@ func BytesRead() uint64 {
 func ConnOpen() uint64 {
 	connOpen.Write(m)
 	return uint64(*m.Gauge.Value)
+}
+
+func RequestDuration() map[float64]float64 {
+	requestDuration.Write(m)
+	result := make(map[float64]float64, len(m.Summary.Quantile))
+	for _, v := range m.Summary.Quantile {
+		result[*v.Quantile] = *v.Value
+	}
+
+	return result
 }

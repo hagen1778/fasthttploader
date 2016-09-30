@@ -20,6 +20,8 @@ var (
 	accept      = flag.String("A", "", "")
 	contentType = flag.String("T", "text/html", "")
 
+	fileName = flag.String("r", "report.html", "")
+
 	d = flag.Duration("d", 5*time.Second, "")
 	t = flag.Duration("t", 5*time.Second, "")
 

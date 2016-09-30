@@ -61,6 +61,7 @@ var (
 func (l *Loader) Run() {
 	r = &report.Page{
 		Title: string(l.Request.URI().Host()),
+		RequestDuration: make(map[float64][]float64),
 	}
 	c = metrics.Init(l.Request, *t)
 	pushgateway.Init()
@@ -238,6 +239,8 @@ func (l *Loader) printState() {
 	r.Timeouts = append(r.Timeouts, metrics.Timeouts())
 	r.RequestSum = append(r.RequestSum, metrics.RequestSum())
 	r.Qps = append(r.Qps, uint64(l.Qps))
+	// TODO: ask about this data type
+	r.UpdateRequestDuration(metrics.RequestDuration())
 	r.Unlock()
 }
 
@@ -286,5 +289,6 @@ func (l *Loader) makeReport() {
 		log.Fatalf("Error while trying to create file: %s", err)
 	}
 	defer f.Close()
+
 	f.WriteString(report.PrintPage(r))
 }
