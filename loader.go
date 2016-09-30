@@ -21,11 +21,6 @@ func (l *Loader) startProgress() {
 	fmt.Println("Loading start!")
 }
 
-func (l *Loader) finalizeProgress() {
-	fmt.Println("Done")
-
-}
-
 type Loader struct {
 	// Request is the request to be made.
 	Request *fasthttp.Request
@@ -65,11 +60,9 @@ func (l *Loader) Run() {
 	}
 	c = metrics.Init(l.Request, *t)
 	pushgateway.Init()
-
 	l.throttle = rate.NewLimiter(1, 1)
+
 	l.makeAdjustment()
-	fmt.Println("Adjustment Finished!")
-	time.Sleep(time.Second*4)
 	l.makeTest()
 	l.makeReport()
 
@@ -85,12 +78,27 @@ func (l *Loader) Run() {
 }
 
 var prev *prevState
-
+const calibrateDuration = time.Second*10
+const adjustmentDuration = time.Second*40
 func (l *Loader) makeAdjustment() {
 	prev = &prevState{}
 	l.calibrateQPS()
-	// TODO: move duration for calibrate phase to some const or flag
-	go l.startCountdown(time.Second*30)
+
+	go func(){
+		l.startProgress()
+		timeout := time.After(adjustmentDuration)
+		tick := time.Tick(time.Millisecond*500)
+		for {
+			select {
+			case <-timeout:
+				stopCh <- struct{}{}
+				return
+			case <-tick:
+				l.calibrate()
+			}
+		}
+	}()
+
 	// TODO: move this coef to const or make some formula to calculate them
 	// probably, num of workers should be moved to flags as "supposed number of workers"
 	if prev.flawed {
@@ -103,10 +111,11 @@ func (l *Loader) makeAdjustment() {
 
 	multiplier = 0.1
 	l.load()
+
+	fmt.Println("Adjustment Finished!")
 }
 
 func (l *Loader) makeTest() {
-	// TODO: make sure, that user passed testing time more than... 10 sec for example
 	s := time.Duration(l.Duration.Seconds()/2/10)
 	stepTick := time.Tick(time.Second * s) // half of the time, 10 steps in first half
 	stateTick := time.Tick(time.Millisecond*500)
@@ -124,7 +133,6 @@ func (l *Loader) makeTest() {
 			case <-timeout:
 				fmt.Println(" >> Timeout")
 				stopCh <- struct{}{}
-				l.finalizeProgress()
 				return
 			case <-stepTick:
 				if steps >= 10-1 {
@@ -148,8 +156,9 @@ func (l *Loader) makeTest() {
 
 func (l *Loader) calibrateQPS() {
 	fmt.Println("Run initial callibrate QPS phase")
-	timeout := time.After(time.Second*10)
+	timeout := time.After(calibrateDuration)
 	tick := time.Tick(time.Millisecond*1000)
+	// TODO: get amount of workers from flags
 	c.AddWorkers(100)
 	for {
 		select {
@@ -157,13 +166,9 @@ func (l *Loader) calibrateQPS() {
 			if c.Amount() < 600 {
 				c.AddWorkers(100)
 			}
-			//if err := pushgateway.Push(c.Metrics()); err != nil {
-			//	fmt.Printf("%s\n", err)
-			//}
 		case <-timeout:
 			prev.flawed = (metrics.Errors()/metrics.RequestSum())*100 > 2 // just more than 3% of errors
-			// TODO: move somewhere calibrate time
-			prev.qps = rate.Limit(float64(metrics.RequestSum())/10)
+			prev.qps = rate.Limit(float64(metrics.RequestSum())/calibrateDuration.Seconds())
 			prev.workers = c.Amount()
 			fmt.Printf("Average QPS for %d workers is: %f; Errs: %d; Req done: %d\n", c.Amount(), prev.qps, metrics.Errors(), metrics.RequestSum())
 			c.Flush()
@@ -174,38 +179,17 @@ func (l *Loader) calibrateQPS() {
 	}
 }
 
-func (l *Loader) startCountdown(d time.Duration){
-	l.startProgress()
-	timeout := time.After(d)
-	tick := time.Tick(time.Millisecond*500)
-	for {
-		select {
-		case <-timeout:
-			l.finalizeProgress()
-			stopCh <- struct{}{}
-			return
-		case <-tick:
-			l.calibrate()
-
-			//if err := pushgateway.Push(c.Metrics()); err != nil {
-			//	fmt.Printf("%s\n", err)
-			//}
-		}
-	}
-}
-
 var multiplier float64
 var await = 0
 func (l *Loader) calibrate(){
 	l.printState()
-
 	if await > 0 {
 		await -=1
 		return
 	}
 
 	if math.Abs(multiplier) < 0.0001 {
-		fmt.Println("Zeroed")
+		fmt.Println("Multiplier is negligible now. Stoping adjustment")
 		stopCh <- struct{}{}
 		return
 	}
@@ -239,14 +223,13 @@ func (l *Loader) printState() {
 	r.Timeouts = append(r.Timeouts, metrics.Timeouts())
 	r.RequestSum = append(r.RequestSum, metrics.RequestSum())
 	r.Qps = append(r.Qps, uint64(l.Qps))
-	// TODO: ask about this data type
 	r.UpdateRequestDuration(metrics.RequestDuration())
 	r.Unlock()
 }
 
 func (l *Loader) adjustQPS() {
 	// TODO: make smthng with this unnatural limit
-	if l.Qps < 1000000 {
+	if l.Qps < 5000000 {
 		l.setQPS(l.Qps * rate.Limit(1+multiplier))
 	}
 }
@@ -283,8 +266,7 @@ func (l *Loader) load() {
 }
 
 func (l *Loader) makeReport() {
-	// TODO: took filename from flags
-	f, err := os.Create("report2.html")
+	f, err := os.Create(*fileName)
 	if err != nil {
 		log.Fatalf("Error while trying to create file: %s", err)
 	}

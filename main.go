@@ -22,7 +22,7 @@ var (
 
 	fileName = flag.String("r", "report.html", "")
 
-	d = flag.Duration("d", 5*time.Second, "")
+	d = flag.Duration("d", 5*time.Second, "Cant be less")
 	t = flag.Duration("t", 5*time.Second, "")
 
 	disableKeepAlive  = flag.Bool("k", false, "")
@@ -36,6 +36,7 @@ var (
 var usage = `Usage: boom [options...] <url>
 
 Options:
+  -d  Test duration. Cannot be less than 20s.
   -k  disable keepalive.
   -t  request timeout. Default is equal to 5s.
 `
@@ -49,6 +50,10 @@ func main(){
 	flag.Parse()
 	if flag.NArg() < 1 {
 		usageAndExit("")
+	}
+
+	if *d < time.Second*20 {
+		usageAndExit("Duratiion cant be less than 20s")
 	}
 
 	if *cpuprofile != "" {
@@ -72,7 +77,6 @@ func main(){
 }
 
 const headerRegexp = "^([\\w-]+):\\s*(.+)"
-
 func formRequestHeader() fasthttp.RequestHeader {
 	var header fasthttp.RequestHeader
 	var url string
