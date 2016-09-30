@@ -50,7 +50,7 @@ type seriesFunc func() string
 	 <body>
 		{%= p.simpleChart("connections", p.connectionSeries) %}
 		{%= p.simpleChart("qps", p.qpsSeries) %}
-		{%= p.simpleChart("errors / timeouts", p.errorSeries) %}
+		{%= p.simpleChart("errors-vs-timeouts", p.errorSeries) %}
 		{%= p.simpleChart("latency", p.durationSeries) %}
 	</body>
 </html>
