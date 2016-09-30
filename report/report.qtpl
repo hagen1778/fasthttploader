@@ -89,14 +89,7 @@ type seriesFunc func() string
                 					x: -20 //center
                 				},
                 				xAxis: {
-                					tickInterval: {%d= p.Step %},
-                					tickWidth: 0,
-                					gridLineWidth: 1,
-                					labels: {
-                						align: 'left',
-                						x: 3,
-                						y: -3
-                					}
+                					type: 'linear',
                 				},
                 				yAxis: {
                 					plotLines: [{
@@ -128,7 +121,9 @@ type seriesFunc func() string
 {% func (p *Page) qpsSeries() %}
 	[{
 		name: 'Qps',
-		data: [{%= Uint64SliceToString(p.Qps) %}]
+		data: [{%= Uint64SliceToString(p.Qps) %}],
+		pointStart: 0,
+		pointInterval: 0.5
 	}]
 {% endfunc %}
 
