@@ -9,9 +9,9 @@ import (
 	"net"
 	"sync/atomic"
 	"flag"
+	"io"
 
 	"github.com/valyala/fasthttp"
-	"io"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -124,7 +124,7 @@ func (w *worker) run(ch chan struct{}) {
 			//atomic.AddUint64(&m.Errors, 1)
 			errors.Inc()
 		}
-		requestDuration.Observe(float64(time.Since(s)))
+		requestDuration.Observe(float64(time.Since(s).Seconds()))
 		requestSum.Inc()
 	}
 }

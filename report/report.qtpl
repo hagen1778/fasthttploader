@@ -7,7 +7,11 @@
 
 {% code
 type Page struct {
+    // Title displayed in title of generated report
     Title string
+
+    // Step is measured in ms and used for TickInterval in charts
+    Step int
 
     sync.Mutex
     Connections []uint64
@@ -17,6 +21,8 @@ type Page struct {
 	Qps []uint64
 	RequestDuration map[float64][]float64
 }
+
+type seriesFunc func() string
 %}
 
 {% func (p *Page) title() %}{%s p.Title %}{% endfunc %}
@@ -42,10 +48,10 @@ type Page struct {
 		<script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
 	</head>
 	 <body>
-		{%= p.connectionsChart() %}
-		{%= p.qpsChart() %}
-		{%= p.ErrorsChart() %}
-		{%= p.durationChart() %}
+		{%= p.simpleChart("connections", p.connectionSeries) %}
+		{%= p.simpleChart("qps", p.qpsSeries) %}
+		{%= p.simpleChart("errors / timeouts", p.errorSeries) %}
+		{%= p.simpleChart("latency", p.durationSeries) %}
 	</body>
 </html>
 {% endfunc %}
@@ -74,8 +80,71 @@ type Page struct {
 {% endfunc %}
 {% endstripspace %}
 
+{% func (p *Page) simpleChart(title string, fn seriesFunc) %}
+	<script>
+	$(function () {
+    			$('#{%s= title %}').highcharts({
+                				title: {
+                					text: '{%s= strings.Title(title) %}',
+                					x: -20 //center
+                				},
+                				xAxis: {
+                					tickInterval: {%d= p.Step %},
+                					tickWidth: 0,
+                					gridLineWidth: 1,
+                					labels: {
+                						align: 'left',
+                						x: 3,
+                						y: -3
+                					}
+                				},
+                				yAxis: {
+                					plotLines: [{
+                						value: 0,
+                						width: 1,
+                						color: '#808080'
+                					}]
+                				},
+                				legend: {
+                					layout: 'vertical',
+                					align: 'right',
+                					verticalAlign: 'middle',
+                					borderWidth: 0
+                				},
+                				series: {%s= fn() %}
+                			});
+    		});
+    </script>
+   	<div id="{%s= title %}" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+{% endfunc %}
+
+{% func (p *Page) connectionSeries()  %}
+	[{
+		name: 'Connections',
+		data: [{%= Uint64SliceToString(p.Connections) %}]
+	}]
+{% endfunc %}
+
+{% func (p *Page) qpsSeries() %}
+	[{
+		name: 'Qps',
+		data: [{%= Uint64SliceToString(p.Qps) %}]
+	}]
+{% endfunc %}
+
+{% func (p *Page) errorSeries() %}
+	[{
+		name: 'Errors',
+		data: [{%= Uint64SliceToString(p.Errors) %}]
+	},{
+		name: 'Timeouts',
+		data: [{%= Uint64SliceToString(p.Timeouts) %}]
+	}]
+{% endfunc %}
+
 {% stripspace %}
-{% func (p *Page) printDurationSeries() %}
+{% func (p *Page) durationSeries() %}
+	[
     {% code
 		var keys []float64
         for k := range p.RequestDuration {
@@ -90,199 +159,6 @@ type Page struct {
 		}
 		{% if i + 1 < len(keys) %},{% endif %}
 	{% endfor %}
+	]
 {% endfunc %}
 {% endstripspace %}
-
-{% func (p *Page) connectionsChart() %}
-	<script>
-	$(function () {
-    			$('#container').highcharts({
-                				title: {
-                					text: 'Connections',
-                					x: -20 //center
-                				},
-                				subtitle: {
-                					text: 'subtitle',
-                					x: -20
-                				},
-                				xAxis: {
-                					tickInterval: 500,
-                					tickWidth: 0,
-                					gridLineWidth: 1,
-                					labels: {
-                						align: 'left',
-                						x: 3,
-                						y: -3
-                					}
-                				},
-                				yAxis: {
-                					title: {
-                						text: 'N'
-                					},
-                					plotLines: [{
-                						value: 0,
-                						width: 1,
-                						color: '#808080'
-                					}]
-                				},
-                				legend: {
-                					layout: 'vertical',
-                					align: 'right',
-                					verticalAlign: 'middle',
-                					borderWidth: 0
-                				},
-                				series: [{
-                					name: 'Connections',
-                					data: [{%= Uint64SliceToString(p.Connections) %}]
-                				}]
-                			});
-    		});
-    </script>
-   	<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
-{% endfunc %}
-
-{% func (p *Page) qpsChart() %}
-	<script>
-	$(function () {
-    			$('#qps').highcharts({
-                				title: {
-                					text: 'Qps',
-                					x: -20 //center
-                				},
-                				subtitle: {
-                					text: 'subtitle',
-                					x: -20
-                				},
-                				xAxis: {
-                					tickInterval: 500,
-                					tickWidth: 0,
-                					gridLineWidth: 1,
-                					labels: {
-                						align: 'left',
-                						x: 3,
-                						y: -3
-                					}
-                				},
-                				yAxis: {
-                					title: {
-                						text: 'N'
-                					},
-                					plotLines: [{
-                						value: 0,
-                						width: 1,
-                						color: '#808080'
-                					}]
-                				},
-                				legend: {
-                					layout: 'vertical',
-                					align: 'right',
-                					verticalAlign: 'middle',
-                					borderWidth: 0
-                				},
-                				series: [{
-                					name: 'Qps',
-                					data: [{%= Uint64SliceToString(p.Qps) %}]
-                				}]
-                			});
-    		});
-    </script>
-   	<div id="qps" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
-{% endfunc %}
-
-{% func (p *Page) ErrorsChart() %}
-	<script>
-	$(function () {
-    			$('#errors').highcharts({
-                				title: {
-                					text: 'Errors, Timeouts',
-                					x: -20 //center
-                				},
-                				subtitle: {
-                					text: 'subtitle',
-                					x: -20
-                				},
-                				xAxis: {
-                					tickInterval: 500,
-                					tickWidth: 0,
-                					gridLineWidth: 1,
-                					labels: {
-                						align: 'left',
-                						x: 3,
-                						y: -3
-                					}
-                				},
-                				yAxis: {
-                					title: {
-                						text: 'N'
-                					},
-                					plotLines: [{
-                						value: 0,
-                						width: 1,
-                						color: '#808080'
-                					}]
-                				},
-                				legend: {
-                					layout: 'vertical',
-                					align: 'right',
-                					verticalAlign: 'middle',
-                					borderWidth: 0
-                				},
-                				series: [{
-                					name: 'Errors',
-                					data: [{%= Uint64SliceToString(p.Errors) %}]
-                				},{
-									name: 'Timeouts',
-									data: [{%= Uint64SliceToString(p.Timeouts) %}]
-								}]
-                			});
-    		});
-    </script>
-   	<div id="errors" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
-{% endfunc %}
-
-{% func (p *Page) durationChart() %}
-	<script>
-	$(function () {
-    			$('#duration').highcharts({
-                				title: {
-                					text: 'Latency',
-                					x: -20 //center
-                				},
-                				subtitle: {
-                					text: 'subtitle',
-                					x: -20
-                				},
-                				xAxis: {
-                					tickInterval: 500,
-                					tickWidth: 0,
-                					gridLineWidth: 1,
-                					labels: {
-                						align: 'left',
-                						x: 3,
-                						y: -3
-                					}
-                				},
-                				yAxis: {
-                					title: {
-                						text: 'S'
-                					},
-                					plotLines: [{
-                						value: 0,
-                						width: 1,
-                						color: '#808080'
-                					}]
-                				},
-                				legend: {
-                					layout: 'vertical',
-                					align: 'right',
-                					verticalAlign: 'middle',
-                					borderWidth: 0
-                				},
-                				series: [
-                				{%= p.printDurationSeries() %}
-                				]
-                			});
-    		});
-    </script>
-   	<div id="duration" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
-{% endfunc %}
