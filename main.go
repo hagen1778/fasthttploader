@@ -50,7 +50,6 @@ Options:
   -disable-compression Disables compression if true
   -debug Print debug messages if true
 `
-// TODO: add support of https
 func main(){
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)

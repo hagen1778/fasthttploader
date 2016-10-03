@@ -36,6 +36,7 @@ type Client struct {
 var (
 	request *fasthttp.Request
 	host string
+	isTLS bool
 	t time.Duration
 )
 
@@ -94,6 +95,7 @@ func (c *Client) AddWorker() {
 	hc := &fasthttp.HostClient{
 		Addr:   host,
 		Dial:	dial,
+		IsTLS: 	isTLS,
 	}
 	w := &worker{
 		hc,
@@ -120,8 +122,6 @@ func (w *worker) run(ch chan struct{}) {
 			if err == fasthttp.ErrTimeout {
 				timeouts.Inc()
 			}
-			//fmt.Printf("Err while sending req: %s", err)
-			//atomic.AddUint64(&m.Errors, 1)
 			errors.Inc()
 		} else {
 			requestSuccess.Inc()
@@ -232,9 +232,14 @@ func convertHost(req *fasthttp.Request) string {
 	if len(addr) == 0 {
 		log.Fatalf("address cannot be empty")
 	}
+	isTLS = string(request.URI().Scheme()) == "https"
 	tmp := strings.SplitN(addr, ":", 2)
 	if len(tmp) != 2 {
-		return tmp[0]+":80"
+		if isTLS {
+			return tmp[0]+":443"
+		} else {
+			return tmp[0]+":80"
+		}
 	}
 	port := tmp[1]
 	portInt, err := strconv.Atoi(port)
