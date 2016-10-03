@@ -144,17 +144,17 @@ type seriesFunc func() string
 	},
 	{
 		name: 'Req-per-sample',
-		data: [{%s= float64SliceToString(rate(p.RequestSum)) %}]
+		data: [{%s= float64SliceToString(rate(p.RequestSum, p.Interval)) %}]
 	}]
 {% endfunc %}
 
 {% func (p *Page) errorSeries() %}
 	[{
 		name: 'Errors',
-		data: [{%s= float64SliceToString(rate(p.Errors)) %}]
+		data: [{%s= float64SliceToString(rate(p.Errors, p.Interval)) %}]
 	},{
 		name: 'Timeouts',
-		data: [{%s= float64SliceToString(rate(p.Timeouts)) %}]
+		data: [{%s= float64SliceToString(rate(p.Timeouts, p.Interval)) %}]
 	}]
 {% endfunc %}
 
@@ -184,10 +184,10 @@ type seriesFunc func() string
 {% func (p *Page) bytesSeries() %}
 	[{
     		name: 'BytesWritten',
-    		data: [{%s= float64SliceToString(rate(p.BytesWritten)) %}]
+    		data: [{%s= float64SliceToString(rate(p.BytesWritten, p.Interval)) %}]
     	},{
     		name: 'BytesRead',
-    		data: [{%s= float64SliceToString(rate(p.BytesRead)) %}]
+    		data: [{%s= float64SliceToString(rate(p.BytesRead, p.Interval)) %}]
     	}]
 {% endfunc %}
 {% endstripspace %}

@@ -24,7 +24,7 @@ const (
 	adjustmentDuration = 40 * time.Second
 
 	// Period of sample taking, while testing
-	samplePeriod = 1000 * time.Millisecond
+	samplePeriod = 500 * time.Millisecond
 )
 
 type Loader struct {
@@ -164,7 +164,6 @@ func (l *Loader) makeTest() {
 	qpsStep := prev.qps/10
 	l.setQPS(qpsStep)
 	c.AddWorkers(workerStep)
-	fmt.Printf("Start test with - qps: %f; connections: %d\n", qpsStep, workerStep)
 	go func(){
 		l.startProgress()
 		timeout := time.After(l.Duration)
@@ -272,7 +271,6 @@ func (l *Loader) load() {
 			prev.qps = l.Qps
 			prev.workers = c.Amount()
 			c.Flush()
-			fmt.Println("Loading done. Data flushed")
 			return
 		default:
 			if l.throttle.Allow(){

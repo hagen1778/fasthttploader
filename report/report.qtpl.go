@@ -432,7 +432,7 @@ func (p *Page) streamqpsSeries(qw422016 *qt422016.Writer) {
 		name: 'Req-per-sample',
 		data: [`)
 	//line report/report.qtpl:147
-	qw422016.N().S(float64SliceToString(rate(p.RequestSum)))
+	qw422016.N().S(float64SliceToString(rate(p.RequestSum, p.Interval)))
 	//line report/report.qtpl:147
 	qw422016.N().S(`]
 	}]
@@ -474,14 +474,14 @@ func (p *Page) streamerrorSeries(qw422016 *qt422016.Writer) {
 		name: 'Errors',
 		data: [`)
 	//line report/report.qtpl:154
-	qw422016.N().S(float64SliceToString(rate(p.Errors)))
+	qw422016.N().S(float64SliceToString(rate(p.Errors, p.Interval)))
 	//line report/report.qtpl:154
 	qw422016.N().S(`]
 	},{
 		name: 'Timeouts',
 		data: [`)
 	//line report/report.qtpl:157
-	qw422016.N().S(float64SliceToString(rate(p.Timeouts)))
+	qw422016.N().S(float64SliceToString(rate(p.Timeouts, p.Interval)))
 	//line report/report.qtpl:157
 	qw422016.N().S(`]
 	}]
@@ -582,11 +582,11 @@ func (p *Page) streambytesSeries(qw422016 *qt422016.Writer) {
 	//line report/report.qtpl:184
 	qw422016.N().S(`[{name: 'BytesWritten',data: [`)
 	//line report/report.qtpl:187
-	qw422016.N().S(float64SliceToString(rate(p.BytesWritten)))
+	qw422016.N().S(float64SliceToString(rate(p.BytesWritten, p.Interval)))
 	//line report/report.qtpl:187
 	qw422016.N().S(`]},{name: 'BytesRead',data: [`)
 	//line report/report.qtpl:190
-	qw422016.N().S(float64SliceToString(rate(p.BytesRead)))
+	qw422016.N().S(float64SliceToString(rate(p.BytesRead, p.Interval)))
 	//line report/report.qtpl:190
 	qw422016.N().S(`]}]`)
 //line report/report.qtpl:192
