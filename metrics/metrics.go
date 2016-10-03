@@ -12,6 +12,7 @@ var (
 	timeouts 	prometheus.Counter
 	errors		prometheus.Counter
 	requestSum	prometheus.Counter
+	requestSuccess	prometheus.Counter
 	connError 	prometheus.Counter
 	bytesWritten 	prometheus.Counter
 	bytesRead 	prometheus.Counter
@@ -38,6 +39,13 @@ func initMetrics() {
 		prometheus.CounterOpts{
 			Name: "request_sum",
 			Help: "Total number of sent requests",
+		},
+	)
+
+	requestSuccess = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "request_success",
+			Help: "Total number of sent success requests",
 		},
 	)
 
@@ -110,6 +118,7 @@ func unregister() {
 	prometheus.Unregister(timeouts)
 	prometheus.Unregister(errors)
 	prometheus.Unregister(requestSum)
+	prometheus.Unregister(requestSuccess)
 	prometheus.Unregister(requestDuration)
 	prometheus.Unregister(connOpen)
 	prometheus.Unregister(connError)
@@ -138,6 +147,11 @@ func Timeouts() uint64 {
 
 func RequestSum() uint64 {
 	requestSum.Write(m)
+	return uint64(*m.Counter.Value)
+}
+
+func RequestSuccess() uint64 {
+	requestSuccess.Write(m)
 	return uint64(*m.Counter.Value)
 }
 

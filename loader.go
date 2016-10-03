@@ -57,6 +57,7 @@ func (l *Loader) Run() {
 	r = &report.Page{
 		Title: string(l.Request.URI().Host()),
 		RequestDuration: make(map[float64][]float64),
+		Interval: samplePeriod.Seconds(),
 	}
 	c = metrics.Init(l.Request, *t)
 	pushgateway.Init()
@@ -78,8 +79,10 @@ func (l *Loader) Run() {
 }
 
 var prev *prevState
+// TODO: make it logic and readable and commented
 const calibrateDuration = time.Second*10
 const adjustmentDuration = time.Second*40
+const samplePeriod = time.Millisecond*500
 func (l *Loader) makeAdjustment() {
 	prev = &prevState{}
 	l.calibrateQPS()
@@ -87,7 +90,7 @@ func (l *Loader) makeAdjustment() {
 	go func(){
 		l.startProgress()
 		timeout := time.After(adjustmentDuration)
-		tick := time.Tick(time.Millisecond*500)
+		tick := time.Tick(samplePeriod)
 		for {
 			select {
 			case <-timeout:
@@ -118,7 +121,7 @@ func (l *Loader) makeAdjustment() {
 func (l *Loader) makeTest() {
 	s := time.Duration(l.Duration.Seconds()/2/10)
 	stepTick := time.Tick(time.Second * s) // half of the time, 10 steps in first half
-	stateTick := time.Tick(time.Millisecond*500)
+	stateTick := time.Tick(samplePeriod)
 	workerStep := prev.workers/10
 	qpsStep := prev.qps/10
 	l.setQPS(qpsStep)
@@ -222,6 +225,9 @@ func (l *Loader) printState() {
 	r.Errors = append(r.Errors, metrics.Errors())
 	r.Timeouts = append(r.Timeouts, metrics.Timeouts())
 	r.RequestSum = append(r.RequestSum, metrics.RequestSum())
+	r.RequestSuccess = append(r.RequestSuccess, metrics.RequestSuccess())
+	r.BytesWritten = append(r.BytesWritten, metrics.BytesWritten())
+	r.BytesRead = append(r.BytesRead, metrics.BytesRead())
 	r.Qps = append(r.Qps, uint64(l.Qps))
 	r.UpdateRequestDuration(metrics.RequestDuration())
 	r.Unlock()

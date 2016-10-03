@@ -1,6 +1,5 @@
 {% import (
     "strings"
-    "strconv"
     "sync"
     "sort"
 ) %}
@@ -11,14 +10,17 @@ type Page struct {
     Title string
 
     // Step is measured in ms and used for TickInterval in charts
-    Step int
+    Interval float64
 
     sync.Mutex
     Connections []uint64
 	RequestSum []uint64
+	RequestSuccess  []uint64
 	Errors []uint64
 	Timeouts []uint64
 	Qps []uint64
+	BytesWritten []uint64
+	BytesRead []uint64
 	RequestDuration map[float64][]float64
 }
 
@@ -46,39 +48,17 @@ type seriesFunc func() string
 		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/highcharts.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
+		<script type="text/javascript">{%s= jsUtils() %}</script>
 	</head>
 	 <body>
 		{%= p.simpleChart("connections", p.connectionSeries) %}
 		{%= p.simpleChart("qps", p.qpsSeries) %}
 		{%= p.simpleChart("errors-vs-timeouts", p.errorSeries) %}
 		{%= p.simpleChart("latency", p.durationSeries) %}
+		{%= p.bytesChart("written-vs-read", p.bytesSeries) %}
 	</body>
 </html>
 {% endfunc %}
-
-{% stripspace %}
-{% func Uint64SliceToString(sl []uint64) %}
-    {% code
-    str := []string{}
-    for _, v := range sl {
-    	str = append(str, strconv.FormatInt(int64(v), 10))
-    }
-    %}
-    {%s= strings.Join(str[:],",") %}
-{% endfunc %}
-{% endstripspace %}
-
-{% stripspace %}
-{% func Float64SliceToString(sl []float64) %}
-    {% code
-    str := []string{}
-    for _, v := range sl {
-    	str = append(str, strconv.FormatFloat(v, 'f', 8, 64))
-    }
-    %}
-    {%s= strings.Join(str[:],",") %}
-{% endfunc %}
-{% endstripspace %}
 
 {% func (p *Page) simpleChart(title string, fn seriesFunc) %}
 	<script>
@@ -91,19 +71,58 @@ type seriesFunc func() string
                 				xAxis: {
                 					type: 'linear',
                 				},
-                				yAxis: {
-                					plotLines: [{
-                						value: 0,
-                						width: 1,
-                						color: '#808080'
-                					}]
-                				},
                 				legend: {
                 					layout: 'vertical',
                 					align: 'right',
                 					verticalAlign: 'middle',
                 					borderWidth: 0
                 				},
+                				plotOptions: {
+									series: {
+										pointStart: 0,
+										pointInterval: {%f.2= p.Interval %},
+									}
+								},
+                				series: {%s= fn() %}
+                			});
+    		});
+    </script>
+   	<div id="{%s= title %}" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+{% endfunc %}
+
+{% func (p *Page) bytesChart(title string, fn seriesFunc) %}
+	<script>
+	$(function () {
+    			$('#{%s= title %}').highcharts({
+                				title: {
+                					text: '{%s= strings.Title(title) %}',
+                					x: -20 //center
+                				},
+                				xAxis: {
+                					type: 'linear',
+                				},
+                				yAxis: {
+									labels: {
+										formatter: function() { return bytes(this.value, true); }
+									},
+									min: 0,
+								},
+								tooltip: {
+									enabled: true,
+									formatter: function() { return bytes(this.y, true);}
+								},
+                				legend: {
+                					layout: 'vertical',
+                					align: 'right',
+                					verticalAlign: 'middle',
+                					borderWidth: 0
+                				},
+                				plotOptions: {
+									series: {
+										pointStart: 0,
+										pointInterval: {%f.2= p.Interval %},
+									}
+								},
                 				series: {%s= fn() %}
                 			});
     		});
@@ -114,26 +133,28 @@ type seriesFunc func() string
 {% func (p *Page) connectionSeries()  %}
 	[{
 		name: 'Connections',
-		data: [{%= Uint64SliceToString(p.Connections) %}]
+		data: [{%s= uint64SliceToString(p.Connections) %}]
 	}]
 {% endfunc %}
 
 {% func (p *Page) qpsSeries() %}
 	[{
 		name: 'Qps',
-		data: [{%= Uint64SliceToString(p.Qps) %}],
-		pointStart: 0,
-		pointInterval: 0.5
+		data: [{%s= uint64SliceToString(p.Qps) %}]
+	},
+	{
+		name: 'Rated RequestSum',
+		data: [{%s= float64SliceToString(rate(p.RequestSum)) %}]
 	}]
 {% endfunc %}
 
 {% func (p *Page) errorSeries() %}
 	[{
 		name: 'Errors',
-		data: [{%= Uint64SliceToString(p.Errors) %}]
+		data: [{%s= float64SliceToString(rate(p.Errors)) %}]
 	},{
 		name: 'Timeouts',
-		data: [{%= Uint64SliceToString(p.Timeouts) %}]
+		data: [{%s= float64SliceToString(rate(p.Timeouts)) %}]
 	}]
 {% endfunc %}
 
@@ -150,10 +171,38 @@ type seriesFunc func() string
 	{% for i, k := range keys %}
 		{
 			name: '{%f= k %}',
-			data: [{%= Float64SliceToString(p.RequestDuration[k]) %}]
+			data: [{%s= float64SliceToString(p.RequestDuration[k]) %}],
+			tooltip: {valueSuffix: ' s'}
 		}
 		{% if i + 1 < len(keys) %},{% endif %}
 	{% endfor %}
 	]
+{% endfunc %}
+{% endstripspace %}
+
+{% stripspace %}
+{% func (p *Page) bytesSeries() %}
+	[{
+    		name: 'BytesWritten',
+    		data: [{%s= float64SliceToString(rate(p.BytesWritten)) %}]
+    	},{
+    		name: 'BytesRead',
+    		data: [{%s= float64SliceToString(rate(p.BytesRead)) %}]
+    	}]
+{% endfunc %}
+{% endstripspace %}
+
+
+{% stripspace %}
+{% func jsUtils() %}
+	function bytes(bytes, label) {
+        if (bytes == 0) return '';
+        var s = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+        var e = Math.floor(Math.log(bytes)/Math.log(1024));
+        var value = ((bytes/Math.pow(1024, Math.floor(e))).toFixed(2));
+        e = (e<0) ? (-e) : e;
+        if (label) value += ' ' + s[e];
+        return value;
+    }
 {% endfunc %}
 {% endstripspace %}

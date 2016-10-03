@@ -123,6 +123,8 @@ func (w *worker) run(ch chan struct{}) {
 			//fmt.Printf("Err while sending req: %s", err)
 			//atomic.AddUint64(&m.Errors, 1)
 			errors.Inc()
+		} else {
+			requestSuccess.Inc()
 		}
 		requestDuration.Observe(float64(time.Since(s).Seconds()))
 		requestSum.Inc()
