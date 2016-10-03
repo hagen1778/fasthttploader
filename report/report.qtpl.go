@@ -429,7 +429,7 @@ func (p *Page) streamqpsSeries(qw422016 *qt422016.Writer) {
 	qw422016.N().S(`]
 	},
 	{
-		name: 'Rated RequestSum',
+		name: 'Req-per-sample',
 		data: [`)
 	//line report/report.qtpl:147
 	qw422016.N().S(float64SliceToString(rate(p.RequestSum)))
@@ -618,35 +618,45 @@ func (p *Page) bytesSeries() string {
 //line report/report.qtpl:192
 }
 
-//line report/report.qtpl:197
+//line report/report.qtpl:195
 func streamjsUtils(qw422016 *qt422016.Writer) {
-	//line report/report.qtpl:197
-	qw422016.N().S(`function bytes(bytes, label) {if (bytes == 0) return '';var s = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];var e = Math.floor(Math.log(bytes)/Math.log(1024));var value = ((bytes/Math.pow(1024, Math.floor(e))).toFixed(2));e = (e<0) ? (-e) : e;if (label) value += ' ' + s[e];return value;}`)
-//line report/report.qtpl:207
+	//line report/report.qtpl:195
+	qw422016.N().S(`
+	function bytes(bytes, label) {
+        if (bytes == 0) return '';
+        var s = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+        var e = Math.floor(Math.log(bytes)/Math.log(1024));
+        var value = ((bytes/Math.pow(1024, Math.floor(e))).toFixed(2));
+        e = (e<0) ? (-e) : e;
+        if (label) value += ' ' + s[e];
+        return value;
+    }
+`)
+//line report/report.qtpl:205
 }
 
-//line report/report.qtpl:207
+//line report/report.qtpl:205
 func writejsUtils(qq422016 qtio422016.Writer) {
-	//line report/report.qtpl:207
+	//line report/report.qtpl:205
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:207
+	//line report/report.qtpl:205
 	streamjsUtils(qw422016)
-	//line report/report.qtpl:207
+	//line report/report.qtpl:205
 	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:207
+//line report/report.qtpl:205
 }
 
-//line report/report.qtpl:207
+//line report/report.qtpl:205
 func jsUtils() string {
-	//line report/report.qtpl:207
+	//line report/report.qtpl:205
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:207
+	//line report/report.qtpl:205
 	writejsUtils(qb422016)
-	//line report/report.qtpl:207
+	//line report/report.qtpl:205
 	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:207
+	//line report/report.qtpl:205
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:207
+	//line report/report.qtpl:205
 	return qs422016
-//line report/report.qtpl:207
+//line report/report.qtpl:205
 }

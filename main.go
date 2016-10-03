@@ -7,10 +7,11 @@ import (
 	"strings"
 	"regexp"
 	"time"
-
-	"github.com/valyala/fasthttp"
 	"log"
 	"runtime/pprof"
+
+	"github.com/valyala/fasthttp"
+	"golang.org/x/time/rate"
 )
 
 var (
@@ -22,9 +23,12 @@ var (
 
 	fileName = flag.String("r", "report.html", "")
 
-	d = flag.Duration("d", 5*time.Second, "Cant be less")
-	t = flag.Duration("t", 5*time.Second, "")
+	d = flag.Duration("d", 20*time.Second, "Cant be less than 20sec")
+	t = flag.Duration("t", 5*time.Second, "Request timeout")
+	q = flag.Int("q", 0, "Request per second limit. Detect automatically, if not setted")
+	cl = flag.Int("c", 500, "Number of supposed clients")
 
+	debug  = flag.Bool("debug", false, "Print debug messages if true")
 	disableKeepAlive  = flag.Bool("k", false, "")
 	disableCompression = flag.Bool("disable-compression", false, "")
 
@@ -33,14 +37,20 @@ var (
 
 )
 
-var usage = `Usage: boom [options...] <url>
-
+var usage = `Usage: fasthttploader [options...] <url>
+Notice: fasthttploader would force agressive burst stages before testing to detect max qps and number for clients.
+To avoid this you need to set -c and -q in
 Options:
+  -q  Request per second limit. Detect automatically, if not setted
   -d  Test duration. Cannot be less than 20s.
-  -k  disable keepalive.
-  -t  request timeout. Default is equal to 5s.
-`
+  -c  Supposed number of clients could be handled by tested service. Default is equal to 500
+  -t  Request timeout. Default is equal to 5s.
 
+  -k  Disable keepalive.
+  -disable-compression Disables compression if true
+  -debug Print debug messages if true
+`
+// TODO: add support of https
 func main(){
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
@@ -73,10 +83,13 @@ func main(){
 	(&Loader{
 		Request: 	&req,
 		Duration:     	*d,
+		C:		*cl,
+		Qps:		rate.Limit(*q),
 	}).Run()
 }
 
 const headerRegexp = "^([\\w-]+):\\s*(.+)"
+
 func formRequestHeader() fasthttp.RequestHeader {
 	var header fasthttp.RequestHeader
 	var url string

@@ -143,7 +143,7 @@ type seriesFunc func() string
 		data: [{%s= uint64SliceToString(p.Qps) %}]
 	},
 	{
-		name: 'Rated RequestSum',
+		name: 'Req-per-sample',
 		data: [{%s= float64SliceToString(rate(p.RequestSum)) %}]
 	}]
 {% endfunc %}
@@ -192,8 +192,6 @@ type seriesFunc func() string
 {% endfunc %}
 {% endstripspace %}
 
-
-{% stripspace %}
 {% func jsUtils() %}
 	function bytes(bytes, label) {
         if (bytes == 0) return '';
@@ -205,4 +203,3 @@ type seriesFunc func() string
         return value;
     }
 {% endfunc %}
-{% endstripspace %}
