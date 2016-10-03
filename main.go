@@ -15,13 +15,13 @@ import (
 )
 
 var (
-	method      = flag.String("m", "GET", "")
-	headers     = flag.String("h", "", "")
-	body        = flag.String("b", "", "")
-	accept      = flag.String("A", "", "")
-	contentType = flag.String("T", "text/html", "")
+	method      = flag.String("m", "GET", "Set HTTP method")
+	headers     = flag.String("h", "", "Set headers")
+	body        = flag.String("b", "", "Set body")
+	accept      = flag.String("A", "", "Set Accept headers")
+	contentType = flag.String("T", "text/html", "Set content-type headers")
 
-	fileName = flag.String("r", "report.html", "")
+	fileName = flag.String("r", "report.html", "Set filename to store final report")
 
 	d = flag.Duration("d", 20*time.Second, "Cant be less than 20sec")
 	t = flag.Duration("t", 5*time.Second, "Request timeout")
@@ -29,8 +29,8 @@ var (
 	cl = flag.Int("c", 500, "Number of supposed clients")
 
 	debug  = flag.Bool("debug", false, "Print debug messages if true")
-	disableKeepAlive  = flag.Bool("k", false, "")
-	disableCompression = flag.Bool("disable-compression", false, "")
+	disableKeepAlive  = flag.Bool("k", false, "Disable keepalive if true")
+	disableCompression = flag.Bool("disable-compression", false, "Disables compression if true")
 
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	memprofile = flag.String("memprofile", "", "write memory profile to this file")
@@ -39,21 +39,15 @@ var (
 
 var usage = `Usage: fasthttploader [options...] <url>
 Notice: fasthttploader would force agressive burst stages before testing to detect max qps and number for clients.
-To avoid this you need to set -c and -q in
+To avoid this you need to set -c and -q parameters.
 Options:
-  -q  Request per second limit. Detect automatically, if not setted
-  -d  Test duration. Cannot be less than 20s.
-  -c  Supposed number of clients could be handled by tested service. Default is equal to 500
-  -t  Request timeout. Default is equal to 5s.
-
-  -k  Disable keepalive.
-  -disable-compression Disables compression if true
-  -debug Print debug messages if true
 `
+
 func main(){
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
 		flag.PrintDefaults()
+		os.Exit(1)
 	}
 
 	flag.Parse()
