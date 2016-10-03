@@ -24,7 +24,7 @@ const (
 	adjustmentDuration = 40 * time.Second
 
 	// Period of sample taking, while testing
-	samplePeriod = 500 * time.Millisecond
+	samplePeriod = 1000 * time.Millisecond
 )
 
 type Loader struct {
@@ -64,6 +64,7 @@ type prevState struct {
 }
 
 var (
+	testTime time.Time
 	prev *prevState
 	stopCh = make(chan struct{})
 
@@ -72,6 +73,7 @@ var (
 )
 
 func (l *Loader) Run() {
+	testTime = time.Now()
 	prev = &prevState{}
 	r = &report.Page{
 		Title: string(l.Request.URI().Host()),
@@ -113,6 +115,7 @@ func (l *Loader) makeAdjustment() {
 			select {
 			case <-timeout:
 				stopCh <- struct{}{}
+				printSummary("Adjustment test")
 				return
 			case <-tick:
 				l.calibrate()
@@ -157,8 +160,8 @@ func (l *Loader) makeTest() {
 	s := time.Duration(l.Duration.Seconds()/2/10)
 	stepTick := time.Tick(time.Second * s) // half of the time, 10 steps in first half
 	stateTick := time.Tick(samplePeriod)
-	workerStep := prev.workers
-	qpsStep := prev.qps
+	workerStep := prev.workers/10
+	qpsStep := prev.qps/10
 	l.setQPS(qpsStep)
 	c.AddWorkers(workerStep)
 	fmt.Printf("Start test with - qps: %f; connections: %d\n", qpsStep, workerStep)
@@ -170,13 +173,14 @@ func (l *Loader) makeTest() {
 			select {
 			case <-timeout:
 				stopCh <- struct{}{}
+				printSummary("Loading test")
 				return
 			case <-stepTick:
 				if steps >= 10-1 {
 					continue
 				}
-				//l.setQPS(l.Qps + qpsStep)
-				//c.AddWorkers(workerStep)
+				l.setQPS(l.Qps + qpsStep)
+				c.AddWorkers(workerStep)
 				steps++
 			case <-stateTick:
 				l.printState()
@@ -287,4 +291,14 @@ func (l *Loader) makeReport() {
 
 	f.WriteString(report.PrintPage(r))
 	fmt.Printf("Check test results at %s\n", *fileName)
+}
+
+func printSummary(stage string) {
+	since := time.Since(testTime).Seconds()
+	fmt.Printf("\n------ %s ------\n", stage)
+	fmt.Printf("Elapsed time: %fs\n", since)
+	fmt.Printf("Req done: %d; Success: %f %%\n", metrics.RequestSum(), (float64(metrics.RequestSuccess())/float64(metrics.RequestSum()))*100)
+	fmt.Printf("Rps: %f; Connections: %d\n", float64(metrics.RequestSum())/since, metrics.ConnOpen())
+	fmt.Printf("Errors: %d; Timeouts: %d\n\n", metrics.Errors(), metrics.Timeouts())
+	testTime = time.Now()
 }
