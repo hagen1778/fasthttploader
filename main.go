@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"strings"
-	"regexp"
-	"time"
 	"log"
+	"os"
+	"regexp"
 	"runtime/pprof"
+	"strings"
+	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -27,8 +27,8 @@ var (
 	q = flag.Int("q", 0, "Request per second limit. Detect automatically, if not setted")
 	c = flag.Int("c", 500, "Number of supposed clients")
 
-	debug  = flag.Bool("debug", false, "Print debug messages if true")
-	disableKeepAlive  = flag.Bool("k", false, "Disable keepalive if true")
+	debug              = flag.Bool("debug", false, "Print debug messages if true")
+	disableKeepAlive   = flag.Bool("k", false, "Disable keepalive if true")
 	disableCompression = flag.Bool("disable-compression", false, "Disables compression if true")
 
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -43,7 +43,7 @@ Options:
 
 var req = new(fasthttp.Request)
 
-func main(){
+func main() {
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
 		flag.PrintDefaults()

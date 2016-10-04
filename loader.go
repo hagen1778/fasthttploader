@@ -3,15 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 	"log"
-	"os"
 	"math"
+	"os"
+	"time"
 
-	"golang.org/x/time/rate"
 	"github.com/hagen1778/fasthttploader/metrics"
 	"github.com/hagen1778/fasthttploader/pushgateway"
 	"github.com/hagen1778/fasthttploader/report"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -40,17 +40,17 @@ var (
 	// multiplier is a coefficient of qps multiplying during tests
 	multiplier = float64(0.1)
 
-	throttle = rate.NewLimiter(1, 1)
-	stopCh = make(chan struct{})
+	throttle  = rate.NewLimiter(1, 1)
+	stopCh    = make(chan struct{})
 	prevState = &state{}
-	curState = &state{}
+	curState  = &state{}
 )
 
 type state struct {
-	// Qps is the rate limit.
+	// qps is the rate limit.
 	qps rate.Limit
 
-	// C is number of workers (clients)
+	// c is a number of workers (clients)
 	c int
 
 	// True if there was any errors while testing
@@ -61,11 +61,10 @@ func run() {
 	client = metrics.Init(req, *t)
 	pushgateway.Init()
 	r = &report.Page{
-		Title: string(req.URI().Host()),
+		Title:           string(req.URI().Host()),
 		RequestDuration: make(map[float64][]float64),
-		Interval: samplePeriod.Seconds(),
+		Interval:        samplePeriod.Seconds(),
 	}
-
 
 	if *q == 0 {
 		makeAdjustment()
@@ -80,7 +79,7 @@ func run() {
 func makeAdjustment() {
 	t := time.Now()
 	calibrateQPS()
-	go func(){
+	go func() {
 		timeout := time.After(adjustmentDuration)
 		tick := time.Tick(samplePeriod)
 		for {
@@ -96,8 +95,8 @@ func makeAdjustment() {
 	}()
 
 	if prevState.flawed {
-		client.AddWorkers(prevState.c/2)
-		setQPS(prevState.qps/2)
+		client.AddWorkers(prevState.c / 2)
+		setQPS(prevState.qps / 2)
 	} else {
 		client.AddWorkers(prevState.c)
 		setQPS(prevState.qps)
@@ -113,7 +112,7 @@ func calibrateQPS() {
 		select {
 		case <-timeout:
 			prevState.flawed = (metrics.Errors()/metrics.RequestSum())*100 > 2 // just more than 3% of errors
-			prevState.qps = rate.Limit(float64(metrics.RequestSum())/calibrateDuration.Seconds())
+			prevState.qps = rate.Limit(float64(metrics.RequestSum()) / calibrateDuration.Seconds())
 			prevState.c = client.Amount()
 			fmt.Printf("Average QPS for %d workers is: %f; Errs: %d; Req done: %d\n", client.Amount(), prevState.qps, metrics.Errors(), metrics.RequestSum())
 			client.Flush()
@@ -127,14 +126,14 @@ func calibrateQPS() {
 func makeTest() {
 	fmt.Println("Start testing")
 	startTime := time.Now()
-	s := time.Duration(d.Seconds()/2/10)
+	s := time.Duration(d.Seconds() / 2 / 10)
 	stepTick := time.Tick(time.Second * s) // half of the time, 10 steps in first half
 	stateTick := time.Tick(samplePeriod)
-	workerStep := prevState.c/10
-	qpsStep := prevState.qps/10
+	workerStep := prevState.c / 10
+	qpsStep := prevState.qps / 10
 	setQPS(qpsStep)
 	client.AddWorkers(workerStep)
-	go func(){
+	go func() {
 		timeout := time.After(*d)
 		steps := 0
 		for {
@@ -153,9 +152,9 @@ func makeTest() {
 			case <-stateTick:
 				printState()
 
-			//if err := pushgateway.Push(c.Metrics()); err != nil {
-			//	fmt.Printf("%s\n", err)
-			//}
+				//if err := pushgateway.Push(c.Metrics()); err != nil {
+				//	fmt.Printf("%s\n", err)
+				//}
 			}
 		}
 	}()
@@ -163,10 +162,11 @@ func makeTest() {
 }
 
 var await = 0
-func calibrate(){
+
+func calibrate() {
 	printState()
 	if await > 0 {
-		await -=1
+		await -= 1
 		return
 	}
 
