@@ -11,7 +11,6 @@ import (
 	"runtime/pprof"
 
 	"github.com/valyala/fasthttp"
-	"golang.org/x/time/rate"
 )
 
 var (
@@ -26,7 +25,7 @@ var (
 	d = flag.Duration("d", 20*time.Second, "Cant be less than 20sec")
 	t = flag.Duration("t", 5*time.Second, "Request timeout")
 	q = flag.Int("q", 0, "Request per second limit. Detect automatically, if not setted")
-	cl = flag.Int("c", 500, "Number of supposed clients")
+	c = flag.Int("c", 500, "Number of supposed clients")
 
 	debug  = flag.Bool("debug", false, "Print debug messages if true")
 	disableKeepAlive  = flag.Bool("k", false, "Disable keepalive if true")
@@ -34,7 +33,6 @@ var (
 
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	memprofile = flag.String("memprofile", "", "write memory profile to this file")
-
 )
 
 var usage = `Usage: fasthttploader [options...] <url>
@@ -42,6 +40,8 @@ Notice: fasthttploader would force agressive burst stages before testing to dete
 To avoid this you need to set -c and -q parameters.
 Options:
 `
+
+var req = new(fasthttp.Request)
 
 func main(){
 	flag.Usage = func() {
@@ -68,60 +68,50 @@ func main(){
 		defer pprof.StopCPUProfile()
 	}
 
-	var req fasthttp.Request
-	header := formRequestHeader()
-	header.CopyTo(&req.Header)
+	applyHeaders()
 	req.AppendBodyString(*body)
+	run()
 
-	(&Loader{
-		Request: 	&req,
-		Duration:     	*d,
-		C:		*cl,
-		Qps:		rate.Limit(*q),
-	}).Run()
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.WriteHeapProfile(f)
+		f.Close()
+		return
+	}
 }
 
-const headerRegexp = "^([\\w-]+):\\s*(.+)"
+var re = regexp.MustCompile("^([\\w-]+):\\s*(.+)")
 
-func formRequestHeader() fasthttp.RequestHeader {
-	var header fasthttp.RequestHeader
+func applyHeaders() {
 	var url string
-	header.SetContentType(*contentType)
+	req.Header.SetContentType(*contentType)
 	if *headers != "" {
 		headers := strings.Split(*headers, ";")
 		for _, h := range headers {
-			match, err := parseInputWithRegexp(h, headerRegexp)
-			if err != nil {
-				usageAndExit(err.Error())
+			matches := re.FindStringSubmatch(h)
+			if len(matches) < 1 {
+				usageAndExit(fmt.Sprintf("could not parse the provided input; input = %v", h))
 			}
-			header.Set(match[1], match[2])
+			req.Header.Set(matches[1], matches[2])
 		}
 	}
 	if *accept != "" {
-		header.Set("Accept", *accept)
+		req.Header.Set("Accept", *accept)
 	}
 	url = flag.Args()[0]
-	header.SetMethod(strings.ToUpper(*method))
-	header.SetRequestURI(url)
+	req.Header.SetMethod(strings.ToUpper(*method))
+	req.Header.SetRequestURI(url)
 	if !*disableCompression {
-		header.Set("Accept-Encoding", "gzip")
+		req.Header.Set("Accept-Encoding", "gzip")
 	}
 	if *disableKeepAlive {
-		header.Set("Connection", "close")
+		req.Header.Set("Connection", "close")
 	} else {
-		header.Set("Connection", "keep-alive")
+		req.Header.Set("Connection", "keep-alive")
 	}
-
-	return header
-}
-
-func parseInputWithRegexp(input, regx string) ([]string, error) {
-	re := regexp.MustCompile(regx)
-	matches := re.FindStringSubmatch(input)
-	if len(matches) < 1 {
-		return nil, fmt.Errorf("could not parse the provided input; input = %v", input)
-	}
-	return matches, nil
 }
 
 func usageAndExit(msg string) {
