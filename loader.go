@@ -16,10 +16,10 @@ import (
 
 const (
 	// Duration of burst-testing, without qps-limit. Used to estimate start test conditions
-	calibrateDuration = 10 * time.Second
+	calibrateDuration = 5 * time.Second
 
 	// Duration of adjustable testing, while trying to reach max qps with minimal lvl of errors
-	adjustmentDuration = 40 * time.Second
+	adjustmentDuration = 10 * time.Second
 
 	// Period of sample taking, while testing
 	samplePeriod = 500 * time.Millisecond
@@ -40,25 +40,20 @@ var (
 	// multiplier is a coefficient of qps multiplying during tests
 	multiplier = float64(0.1)
 
-	throttle  = rate.NewLimiter(1, 1)
-	stopCh    = make(chan struct{})
-	prevState = &state{}
-	curState  = &state{}
+	throttle = rate.NewLimiter(1, 1)
+	stopCh   = make(chan struct{})
 )
 
-type state struct {
+type loadConfig struct {
 	// qps is the rate limit.
 	qps rate.Limit
 
 	// c is a number of workers (clients)
 	c int
-
-	// True if there was any errors while testing
-	flawed bool
 }
 
 func run() {
-	client = metrics.Init(req, *t)
+	client = metrics.New(req, *t)
 	pushgateway.Init()
 	r = &report.Page{
 		Title:           string(req.URI().Host()),
@@ -66,55 +61,38 @@ func run() {
 		Interval:        samplePeriod.Seconds(),
 	}
 
+	cfg := loadConfig{}
 	if *q == 0 {
-		makeAdjustment()
+		fmt.Println("Run burst-load phase")
+		burstThroughput(&cfg)
+
+		fmt.Println("Run calibrate phase")
+		calibrateThroughput(&cfg)
 	} else {
-		prevState.qps = rate.Limit(*q)
-		prevState.c = *c
+		cfg.qps = rate.Limit(*q)
+		cfg.c = *c
 	}
-	makeTest()
+
+	fmt.Println("Run load phase")
+	makeLoad(&cfg)
+
 	makeReport()
 }
 
-func makeAdjustment() {
-	t := time.Now()
-	calibrateQPS()
-	go func() {
-		timeout := time.After(adjustmentDuration)
-		tick := time.Tick(samplePeriod)
-		for {
-			select {
-			case <-timeout:
-				stopCh <- struct{}{}
-				printSummary("Adjustment test", t)
-				return
-			case <-tick:
-				calibrate()
-			}
-		}
-	}()
-
-	if prevState.flawed {
-		client.AddWorkers(prevState.c / 2)
-		setQPS(prevState.qps / 2)
-	} else {
-		client.AddWorkers(prevState.c)
-		setQPS(prevState.qps)
-	}
-	load()
-}
-
-func calibrateQPS() {
-	fmt.Println("Run initial callibrate QPS phase")
+func burstThroughput(cfg *loadConfig) {
+	startTime := time.Now()
 	timeout := time.After(calibrateDuration)
-	client.AddWorkers(*c)
+	client.RunWorkers(*c)
 	for {
 		select {
 		case <-timeout:
-			prevState.flawed = (metrics.Errors()/metrics.RequestSum())*100 > 2 // just more than 3% of errors
-			prevState.qps = rate.Limit(float64(metrics.RequestSum()) / calibrateDuration.Seconds())
-			prevState.c = client.Amount()
-			fmt.Printf("Average QPS for %d workers is: %f; Errs: %d; Req done: %d\n", client.Amount(), prevState.qps, metrics.Errors(), metrics.RequestSum())
+			cfg.qps = rate.Limit(float64(metrics.RequestSum()) / calibrateDuration.Seconds())
+			cfg.c = client.Amount()
+			if (metrics.Errors()/metrics.RequestSum())*100 > 2 { // just more than 3% of errors
+				cfg.qps /= 2
+				cfg.c /= 2
+			}
+			printSummary("Burst Throughput", startTime)
 			client.Flush()
 			return
 		default:
@@ -123,16 +101,43 @@ func calibrateQPS() {
 	}
 }
 
-func makeTest() {
-	fmt.Println("Start testing")
+func calibrateThroughput(cfg *loadConfig) {
+	t := time.Now()
+	client.RunWorkers(cfg.c)
+	throttle.SetLimit(cfg.qps)
+
+	go func() {
+		timeout := time.After(adjustmentDuration)
+		tick := time.Tick(samplePeriod)
+		for {
+			select {
+			case <-timeout:
+				stopCh <- struct{}{}
+				cfg.qps = throttle.Limit()
+				cfg.c = client.Amount()
+				printSummary("Adjustment test", t)
+				return
+			case <-tick:
+				printState()
+				calibrate()
+			}
+		}
+	}()
+
+	load()
+}
+
+func makeLoad(cfg *loadConfig) {
 	startTime := time.Now()
+
 	s := time.Duration(d.Seconds() / 2 / 10)
 	stepTick := time.Tick(time.Second * s) // half of the time, 10 steps in first half
 	stateTick := time.Tick(samplePeriod)
-	workerStep := prevState.c / 10
-	qpsStep := prevState.qps / 10
-	setQPS(qpsStep)
-	client.AddWorkers(workerStep)
+
+	workerStep := cfg.c / 10
+	qpsStep := cfg.qps / 10
+	throttle.SetLimit(qpsStep)
+	client.RunWorkers(workerStep)
 	go func() {
 		timeout := time.After(*d)
 		steps := 0
@@ -146,8 +151,8 @@ func makeTest() {
 				if steps >= 10-1 {
 					continue
 				}
-				setQPS(curState.qps + qpsStep)
-				client.AddWorkers(workerStep)
+				throttle.SetLimit(throttle.Limit() + qpsStep)
+				client.RunWorkers(workerStep)
 				steps++
 			case <-stateTick:
 				printState()
@@ -164,24 +169,24 @@ func makeTest() {
 var await = 0
 
 func calibrate() {
-	printState()
+	if math.Abs(multiplier) < 0.0001 {
+		fmt.Println("Multiplier is negligible now. Stoping calibrate")
+		stopCh <- struct{}{}
+		return
+	}
+
 	if await > 0 {
 		await -= 1
 		return
 	}
 
-	if math.Abs(multiplier) < 0.0001 {
-		fmt.Println("Multiplier is negligible now. Stoping adjustment")
-		stopCh <- struct{}{}
-		return
-	}
 	if !isFlawed() {
-		if len(client.Jobsch) > 0 {
+		if client.Overflow() > 0 {
 			n := int(float64(client.Amount()) * multiplier)
-			client.AddWorkers(n)
+			client.RunWorkers(n)
 			await += 1
 		} else {
-			adjustQPS()
+			throttle.SetLimit(throttle.Limit() * rate.Limit(1+multiplier))
 			await += 1
 		}
 	} else {
@@ -194,7 +199,7 @@ func printState() {
 	if *debug {
 		fmt.Println("------------")
 		fmt.Printf("[ Multiplier = %f ]\n", multiplier)
-		fmt.Printf("QPS was increased to: %f\nWorkers: %d\nJobsch len: %d\n", curState.qps, client.Amount(), len(client.Jobsch))
+		fmt.Printf("QPS was increased to: %f\nWorkers: %d\nJobsch len: %d\n", throttle.Limit(), client.Amount(), client.Overflow())
 		fmt.Printf(" >> Num of cons: %d; Req done: %d; Errors: %d; Timeouts: %d\n", metrics.ConnOpen(), metrics.RequestSum(), metrics.Errors(), metrics.Timeouts())
 		//fmt.Printf(" >> Real Req/s: %f; Transfer/s: %f kb;\n", float64(metrics.RequestSum())/since, float64(metrics.BytesWritten())/(since*1024))
 		fmt.Println("------------")
@@ -208,18 +213,9 @@ func printState() {
 	r.RequestSuccess = append(r.RequestSuccess, metrics.RequestSuccess())
 	r.BytesWritten = append(r.BytesWritten, metrics.BytesWritten())
 	r.BytesRead = append(r.BytesRead, metrics.BytesRead())
-	r.Qps = append(r.Qps, uint64(curState.qps))
+	r.Qps = append(r.Qps, uint64(throttle.Limit()))
 	r.UpdateRequestDuration(metrics.RequestDuration())
 	r.Unlock()
-}
-
-func adjustQPS() {
-	setQPS(curState.qps * rate.Limit(1+multiplier))
-}
-
-func setQPS(qps rate.Limit) {
-	curState.qps = qps
-	throttle.SetLimit(qps)
 }
 
 func isFlawed() bool {
@@ -235,8 +231,6 @@ func load() {
 	for {
 		select {
 		case <-stopCh:
-			prevState.qps = curState.qps
-			prevState.c = client.Amount()
 			client.Flush()
 			return
 		default:

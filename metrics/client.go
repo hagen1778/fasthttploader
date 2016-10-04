@@ -1,18 +1,18 @@
 package metrics
 
 import (
-	"time"
-	"sync"
-	"log"
-	"strings"
-	"strconv"
-	"net"
-	"sync/atomic"
 	"flag"
 	"io"
+	"log"
+	"net"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
-	"github.com/valyala/fasthttp"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -25,29 +25,33 @@ var (
 const jobCapacity = 10000
 
 type Client struct {
-	Jobsch chan struct{}
-
-	workers []*worker
+	*fasthttp.HostClient
 	wg sync.WaitGroup
 
 	sync.Mutex
+	Jobsch  chan struct{}
+	workers int
 }
 
 var (
 	request *fasthttp.Request
-	host string
-	isTLS bool
-	t time.Duration
+	t       time.Duration
 )
 
-func Init(r *fasthttp.Request, timeout time.Duration) *Client {
-	register()
+func New(r *fasthttp.Request, timeout time.Duration) *Client {
+	registerMetrics()
 	request = r
-	host = convertHost(request)
 	t = timeout
 
+	addr, isTLS := acquireAddr(request)
 	return &Client{
 		Jobsch: make(chan struct{}, jobCapacity),
+		HostClient: &fasthttp.HostClient{
+			Addr:     addr,
+			IsTLS:    isTLS,
+			Dial:     dial,
+			MaxConns: 100000,
+		},
 	}
 }
 
@@ -55,7 +59,14 @@ func (c *Client) Amount() int {
 	c.Lock()
 	defer c.Unlock()
 
-	return len(c.workers)
+	return c.workers
+}
+
+func (c *Client) Overflow() int {
+	c.Lock()
+	defer c.Unlock()
+
+	return len(c.Jobsch)
 }
 
 func drainChan(ch chan struct{}) {
@@ -70,54 +81,36 @@ func drainChan(ch chan struct{}) {
 }
 
 func (c *Client) Flush() {
-	c.Lock()
-	defer c.Unlock()
-
 	drainChan(c.Jobsch)
 	close(c.Jobsch)
 
 	c.wg.Wait()
-	time.Sleep(2*t)
-
 	flushMetrics()
-	c.workers = c.workers[:0]
+	c.workers = 0
 	c.Jobsch = make(chan struct{}, jobCapacity)
 }
 
-func (c *Client) AddWorkers(n int) {
+func (c *Client) RunWorkers(n int) {
 	for i := 0; i < n; i++ {
 		c.wg.Add(1)
-		go c.AddWorker()
+		go func() {
+			c.Lock()
+			c.workers++
+			c.Unlock()
+
+			c.run()
+			c.wg.Done()
+		}()
 	}
 }
 
-func (c *Client) AddWorker() {
-	hc := &fasthttp.HostClient{
-		Addr:   host,
-		Dial:	dial,
-		IsTLS: 	isTLS,
-	}
-	w := &worker{
-		hc,
-	}
-	c.Lock()
-	c.workers = append(c.workers, w)
-	c.Unlock()
-
-	w.run(c.Jobsch)
-	c.wg.Done()
-}
-
-type worker struct{
-	*fasthttp.HostClient
-}
-
-func (w *worker) run(ch chan struct{}) {
+func (c *Client) run() {
 	var resp fasthttp.Response
-	r := cloneRequest(request)
-	for range ch {
+	r := new(fasthttp.Request)
+	request.CopyTo(r)
+	for range c.Jobsch {
 		s := time.Now()
-		err := w.DoTimeout(r, &resp, t)
+		err := c.DoTimeout(r, &resp, t)
 		if err != nil {
 			if err == fasthttp.ErrTimeout {
 				timeouts.Inc()
@@ -133,13 +126,13 @@ func (w *worker) run(ch chan struct{}) {
 
 type hostConn struct {
 	net.Conn
-	addr   string
-	closed uint32
-	connOpen prometheus.Gauge
-	readError prometheus.Counter
-	writeError prometheus.Counter
+	addr         string
+	closed       uint32
+	connOpen     prometheus.Gauge
+	readError    prometheus.Counter
+	writeError   prometheus.Counter
 	bytesWritten prometheus.Counter
-	bytesRead prometheus.Counter
+	bytesRead    prometheus.Counter
 }
 
 func dial(addr string) (net.Conn, error) {
@@ -155,13 +148,13 @@ func dial(addr string) (net.Conn, error) {
 
 	connOpen.Inc()
 	return &hostConn{
-		Conn: conn,
-		addr: addr,
-		connOpen: connOpen,
-		readError: readError,
-		writeError: writeError,
+		Conn:         conn,
+		addr:         addr,
+		connOpen:     connOpen,
+		readError:    readError,
+		writeError:   writeError,
 		bytesWritten: bytesWritten,
-		bytesRead: bytesRead,
+		bytesRead:    bytesRead,
 	}, nil
 }
 
@@ -219,27 +212,19 @@ func (hc *hostConn) Read(p []byte) (int, error) {
 	return n, err
 }
 
-
-func cloneRequest(r *fasthttp.Request) *fasthttp.Request {
-	r2 := new(fasthttp.Request)
-	r.Header.CopyTo(&r2.Header)
-	r2.AppendBody(r.Body())
-	return r2
-}
-
-func convertHost(req *fasthttp.Request) string {
+func acquireAddr(req *fasthttp.Request) (string, bool) {
 	addr := string(req.URI().Host())
 	if len(addr) == 0 {
 		log.Fatalf("address cannot be empty")
 	}
-	isTLS = string(request.URI().Scheme()) == "https"
+	isTLS := string(request.URI().Scheme()) == "https"
 	tmp := strings.SplitN(addr, ":", 2)
 	if len(tmp) != 2 {
+		port := ":80"
 		if isTLS {
-			return tmp[0]+":443"
-		} else {
-			return tmp[0]+":80"
+			port = ":443"
 		}
+		return tmp[0] + port, isTLS
 	}
 	port := tmp[1]
 	portInt, err := strconv.Atoi(port)
@@ -250,5 +235,5 @@ func convertHost(req *fasthttp.Request) string {
 		log.Fatalf("upstreamHosts port %d cannot be negative: %q", portInt, addr)
 	}
 
-	return addr
+	return addr, isTLS
 }

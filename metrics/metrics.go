@@ -6,18 +6,18 @@ import (
 )
 
 var (
-	requestDuration	prometheus.Summary
-	connOpen	prometheus.Gauge
+	requestDuration prometheus.Summary
+	connOpen        prometheus.Gauge
 
-	timeouts 	prometheus.Counter
-	errors		prometheus.Counter
-	requestSum	prometheus.Counter
-	requestSuccess	prometheus.Counter
-	connError 	prometheus.Counter
-	bytesWritten 	prometheus.Counter
-	bytesRead 	prometheus.Counter
-	writeError 	prometheus.Counter
-	readError 	prometheus.Counter
+	timeouts       prometheus.Counter
+	errors         prometheus.Counter
+	requestSum     prometheus.Counter
+	requestSuccess prometheus.Counter
+	connError      prometheus.Counter
+	bytesWritten   prometheus.Counter
+	bytesRead      prometheus.Counter
+	writeError     prometheus.Counter
+	readError      prometheus.Counter
 )
 
 func initMetrics() {
@@ -51,8 +51,8 @@ func initMetrics() {
 
 	requestDuration = prometheus.NewSummary(
 		prometheus.SummaryOpts{
-			Name: "request_duration",
-			Help: "Latency of sent requests",
+			Name:       "request_duration",
+			Help:       "Latency of sent requests",
 			Objectives: map[float64]float64{0.5: 0.05, 0.75: 0.025, 0.8: 0.02, 0.9: 0.01, 0.99: 0.001},
 		},
 	)
@@ -100,7 +100,7 @@ func initMetrics() {
 	)
 }
 
-func register() {
+func registerMetrics() {
 	initMetrics()
 	prometheus.MustRegister(timeouts)
 	prometheus.MustRegister(errors)
@@ -112,9 +112,10 @@ func register() {
 	prometheus.MustRegister(bytesRead)
 	prometheus.MustRegister(writeError)
 	prometheus.MustRegister(readError)
+
 }
 
-func unregister() {
+func unregisterMetrics() {
 	prometheus.Unregister(timeouts)
 	prometheus.Unregister(errors)
 	prometheus.Unregister(requestSum)
@@ -129,8 +130,8 @@ func unregister() {
 }
 
 func flushMetrics() {
-	unregister()
-	register()
+	unregisterMetrics()
+	registerMetrics()
 }
 
 var m = &dto.Metric{}
