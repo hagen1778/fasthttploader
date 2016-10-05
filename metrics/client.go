@@ -47,10 +47,10 @@ func New(r *fasthttp.Request, timeout time.Duration) *Client {
 	return &Client{
 		Jobsch: make(chan struct{}, jobCapacity),
 		HostClient: &fasthttp.HostClient{
-			Addr:  addr,
-			IsTLS: isTLS,
-			Dial:  dial,
-			//MaxConns: maxConns,
+			Addr:            addr,
+			IsTLS:           isTLS,
+			Dial:            dial,
+			MaxConnDuration: time.Second,
 		},
 	}
 }
