@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"time"
 
+	"github.com/cheggaaa/pb"
 	"github.com/hagen1778/fasthttploader/metrics"
 	"github.com/hagen1778/fasthttploader/pushgateway"
 	"github.com/hagen1778/fasthttploader/report"
@@ -82,10 +82,13 @@ func run() {
 func burstThroughput(cfg *loadConfig) {
 	startTime := time.Now()
 	timeout := time.After(calibrateDuration)
+	bar, progressTicker := acquireProgressBar(calibrateDuration)
+
 	client.RunWorkers(*c)
 	for {
 		select {
 		case <-timeout:
+			finishProgressBar(bar)
 			cfg.qps = rate.Limit(float64(metrics.RequestSum()) / calibrateDuration.Seconds())
 			cfg.c = client.Amount()
 			if (metrics.Errors()/metrics.RequestSum())*100 > 2 { // just more than 3% of errors
@@ -95,6 +98,8 @@ func burstThroughput(cfg *loadConfig) {
 			printSummary("Burst Throughput", startTime)
 			client.Flush()
 			return
+		case <-progressTicker:
+			bar.Increment()
 		default:
 			client.Jobsch <- struct{}{}
 		}
@@ -103,21 +108,25 @@ func burstThroughput(cfg *loadConfig) {
 
 func calibrateThroughput(cfg *loadConfig) {
 	t := time.Now()
-	client.RunWorkers(cfg.c)
-	throttle.SetLimit(cfg.qps)
 
+	throttle.SetLimit(cfg.qps)
+	client.RunWorkers(cfg.c)
 	go func() {
 		timeout := time.After(adjustmentDuration)
-		tick := time.Tick(samplePeriod)
+		sampler := time.Tick(samplePeriod)
+		bar, progressTicker := acquireProgressBar(adjustmentDuration)
 		for {
 			select {
 			case <-timeout:
+				finishProgressBar(bar)
 				stopCh <- struct{}{}
 				cfg.qps = throttle.Limit()
 				cfg.c = client.Amount()
 				printSummary("Adjustment test", t)
 				return
-			case <-tick:
+			case <-progressTicker:
+				bar.Increment()
+			case <-sampler:
 				printState()
 				calibrate()
 			}
@@ -127,54 +136,9 @@ func calibrateThroughput(cfg *loadConfig) {
 	load()
 }
 
-func makeLoad(cfg *loadConfig) {
-	startTime := time.Now()
-
-	s := time.Duration(d.Seconds() / 2 / 10)
-	stepTick := time.Tick(time.Second * s) // half of the time, 10 steps in first half
-	stateTick := time.Tick(samplePeriod)
-
-	workerStep := cfg.c / 10
-	qpsStep := cfg.qps / 10
-	throttle.SetLimit(qpsStep)
-	client.RunWorkers(workerStep)
-	go func() {
-		timeout := time.After(*d)
-		steps := 0
-		for {
-			select {
-			case <-timeout:
-				stopCh <- struct{}{}
-				printSummary("Loading test", startTime)
-				return
-			case <-stepTick:
-				if steps >= 10-1 {
-					continue
-				}
-				throttle.SetLimit(throttle.Limit() + qpsStep)
-				client.RunWorkers(workerStep)
-				steps++
-			case <-stateTick:
-				printState()
-
-				//if err := pushgateway.Push(c.Metrics()); err != nil {
-				//	fmt.Printf("%s\n", err)
-				//}
-			}
-		}
-	}()
-	load()
-}
-
 var await = 0
 
 func calibrate() {
-	if math.Abs(multiplier) < 0.0001 {
-		fmt.Println("Multiplier is negligible now. Stoping calibrate")
-		stopCh <- struct{}{}
-		return
-	}
-
 	if await > 0 {
 		await -= 1
 		return
@@ -193,6 +157,48 @@ func calibrate() {
 		multiplier /= 1.2
 		await += 3
 	}
+}
+
+func makeLoad(cfg *loadConfig) {
+	startTime := time.Now()
+
+	workerStep := cfg.c / 10
+	qpsStep := cfg.qps / 10
+	throttle.SetLimit(qpsStep)
+	client.RunWorkers(workerStep)
+	go func() {
+		s := time.Duration(d.Seconds() / 2 / 10)
+		stepTick := time.Tick(time.Second * s) // half of the time, 10 steps in first half
+		stateTick := time.Tick(samplePeriod)
+		timeout := time.After(*d)
+		steps := 0
+		bar, progressTicker := acquireProgressBar(*d)
+		for {
+			select {
+			case <-timeout:
+				finishProgressBar(bar)
+				stopCh <- struct{}{}
+				printSummary("Loading test", startTime)
+				return
+			case <-stepTick:
+				if steps >= 10-1 {
+					continue
+				}
+				throttle.SetLimit(throttle.Limit() + qpsStep)
+				client.RunWorkers(workerStep)
+				steps++
+			case <-progressTicker:
+				bar.Increment()
+			case <-stateTick:
+				printState()
+
+				//if err := pushgateway.Push(c.Metrics()); err != nil {
+				//	fmt.Printf("%s\n", err)
+				//}
+			}
+		}
+	}()
+	load()
 }
 
 func printState() {
@@ -260,4 +266,18 @@ func printSummary(stage string, t time.Time) {
 	fmt.Printf("Req done: %d; Success: %f %%\n", metrics.RequestSum(), (float64(metrics.RequestSuccess())/float64(metrics.RequestSum()))*100)
 	fmt.Printf("Rps: %f; Connections: %d\n", float64(metrics.RequestSum())/since, metrics.ConnOpen())
 	fmt.Printf("Errors: %d; Timeouts: %d\n\n", metrics.Errors(), metrics.Timeouts())
+}
+
+func acquireProgressBar(t time.Duration) (*pb.ProgressBar, <-chan time.Time) {
+	pb := pb.New64(int64(t.Seconds()))
+	pb.ShowCounters = false
+	pb.ShowPercent = false
+	pb.Start()
+	return pb, time.Tick(time.Second)
+}
+
+// TODO: move printSummary to this func and try to use startTime field, if it is possible
+func finishProgressBar(pb *pb.ProgressBar) {
+	pb.Set64(pb.Total)
+	pb.Finish()
 }
