@@ -23,7 +23,8 @@ var (
 )
 
 const jobCapacity = 10000
-const maxConnDuration = time.Second
+const maxIdleConnDuration = time.Second
+const maxConns = 1<<31 - 1
 
 type Client struct {
 	*fasthttp.HostClient
@@ -48,10 +49,11 @@ func New(r *fasthttp.Request, timeout time.Duration) *Client {
 	return &Client{
 		Jobsch: make(chan struct{}, jobCapacity),
 		HostClient: &fasthttp.HostClient{
-			Addr:            addr,
-			IsTLS:           isTLS,
-			Dial:            dial,
-			MaxConnDuration: maxConnDuration,
+			Addr:                addr,
+			IsTLS:               isTLS,
+			Dial:                dial,
+			MaxIdleConnDuration: maxIdleConnDuration,
+			MaxConns:            maxConns,
 		},
 	}
 }
