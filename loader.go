@@ -73,7 +73,14 @@ func run() {
 	fmt.Println("Run load phase")
 	makeLoad(&cfg)
 
-	makeReport()
+	f, err := os.Create(*fileName)
+	if err != nil {
+		log.Fatalf("Error while trying to create file: %s", err)
+	}
+	defer f.Close()
+
+	f.WriteString(report.PrintPage(r))
+	fmt.Printf("Check test results at %s\n", *fileName)
 }
 
 func burstThroughput(cfg *loadConfig) {
@@ -245,17 +252,6 @@ func load(ctx context.Context) {
 			client.Jobsch <- struct{}{}
 		}
 	}
-}
-
-func makeReport() {
-	f, err := os.Create(*fileName)
-	if err != nil {
-		log.Fatalf("Error while trying to create file: %s", err)
-	}
-	defer f.Close()
-
-	f.WriteString(report.PrintPage(r))
-	fmt.Printf("Check test results at %s\n", *fileName)
 }
 
 func printSummary(stage string, t time.Time) {
