@@ -23,6 +23,7 @@ var (
 )
 
 const jobCapacity = 10000
+const maxConnDuration = time.Second
 
 type Client struct {
 	*fasthttp.HostClient
@@ -50,7 +51,7 @@ func New(r *fasthttp.Request, timeout time.Duration) *Client {
 			Addr:            addr,
 			IsTLS:           isTLS,
 			Dial:            dial,
-			MaxConnDuration: time.Second,
+			MaxConnDuration: maxConnDuration,
 		},
 	}
 }
