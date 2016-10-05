@@ -16,18 +16,16 @@ import (
 
 const (
 	// Duration of burst-testing, without qps-limit. Used to estimate start test conditions
-	calibrateDuration = 5 * time.Second
+	calibrateDuration = 10 * time.Second
 
 	// Duration of adjustable testing, while trying to reach max qps with minimal lvl of errors
-	adjustmentDuration = 10 * time.Second
+	adjustmentDuration = 30 * time.Second
 
 	// Period of sample taking, while testing
 	samplePeriod = 500 * time.Millisecond
 )
 
 var (
-	ctx = context.Background()
-
 	// client do http requests, populate metrics
 	client *metrics.Client
 
@@ -41,7 +39,6 @@ var (
 	multiplier = float64(0.1)
 
 	throttle = rate.NewLimiter(1, 1)
-	stopCh   = make(chan struct{})
 )
 
 type loadConfig struct {
@@ -108,6 +105,7 @@ func burstThroughput(cfg *loadConfig) {
 
 func calibrateThroughput(cfg *loadConfig) {
 	t := time.Now()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	throttle.SetLimit(cfg.qps)
 	client.RunWorkers(cfg.c)
@@ -118,8 +116,8 @@ func calibrateThroughput(cfg *loadConfig) {
 		for {
 			select {
 			case <-timeout:
+				cancel()
 				finishProgressBar(bar)
-				stopCh <- struct{}{}
 				cfg.qps = throttle.Limit()
 				cfg.c = client.Amount()
 				printSummary("Adjustment test", t)
@@ -133,7 +131,7 @@ func calibrateThroughput(cfg *loadConfig) {
 		}
 	}()
 
-	load()
+	load(ctx)
 }
 
 var await = 0
@@ -161,6 +159,7 @@ func calibrate() {
 
 func makeLoad(cfg *loadConfig) {
 	startTime := time.Now()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	workerStep := cfg.c / 10
 	qpsStep := cfg.qps / 10
@@ -176,8 +175,8 @@ func makeLoad(cfg *loadConfig) {
 		for {
 			select {
 			case <-timeout:
+				cancel()
 				finishProgressBar(bar)
-				stopCh <- struct{}{}
 				printSummary("Loading test", startTime)
 				return
 			case <-stepTick:
@@ -198,7 +197,7 @@ func makeLoad(cfg *loadConfig) {
 			}
 		}
 	}()
-	load()
+	load(ctx)
 }
 
 func printState() {
@@ -233,10 +232,10 @@ func isFlawed() bool {
 	return false
 }
 
-func load() {
+func load(ctx context.Context) {
 	for {
 		select {
-		case <-stopCh:
+		case <-ctx.Done():
 			client.Flush()
 			return
 		default:
