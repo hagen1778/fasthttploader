@@ -95,7 +95,7 @@ func burstThroughput(cfg *loadConfig) {
 			finishProgressBar(bar)
 			cfg.qps = float64(metrics.RequestSum()) / calibrateDuration.Seconds()
 			cfg.c = client.Amount()
-			if (metrics.Errors()/metrics.RequestSum())*100 > 2 { // just more than 3% of errors
+			if (metrics.Errors()/metrics.RequestSum())*100 > 2 { // just more than 2% of errors
 				cfg.qps /= 2
 				cfg.c /= 2
 			}
