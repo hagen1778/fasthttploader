@@ -30,26 +30,22 @@ const (
 
 type Client struct {
 	*fasthttp.HostClient
-	wg sync.WaitGroup
+	wg      sync.WaitGroup
+	timeout time.Duration
+	request *fasthttp.Request
 
 	sync.Mutex
 	Jobsch  chan struct{}
 	workers int
 }
 
-var (
-	request *fasthttp.Request
-	t       time.Duration
-)
-
-func New(r *fasthttp.Request, timeout time.Duration) *Client {
+func New(request *fasthttp.Request, timeout time.Duration) *Client {
 	registerMetrics()
-	request = r
-	t = timeout
-
 	addr, isTLS := acquireAddr(request)
 	return &Client{
-		Jobsch: make(chan struct{}, jobCapacity),
+		Jobsch:  make(chan struct{}, jobCapacity),
+		timeout: timeout,
+		request: request,
 		HostClient: &fasthttp.HostClient{
 			Addr:                addr,
 			IsTLS:               isTLS,
@@ -112,10 +108,10 @@ func (c *Client) RunWorkers(n int) {
 func (c *Client) run() {
 	var resp fasthttp.Response
 	r := new(fasthttp.Request)
-	request.CopyTo(r)
+	c.request.CopyTo(r)
 	for range c.Jobsch {
 		s := time.Now()
-		err := c.DoTimeout(r, &resp, t)
+		err := c.DoTimeout(r, &resp, c.timeout)
 		if err != nil {
 			if err == fasthttp.ErrTimeout {
 				timeouts.Inc()
@@ -222,7 +218,7 @@ func acquireAddr(req *fasthttp.Request) (string, bool) {
 	if len(addr) == 0 {
 		log.Fatalf("address cannot be empty")
 	}
-	isTLS := string(request.URI().Scheme()) == "https"
+	isTLS := string(req.URI().Scheme()) == "https"
 	tmp := strings.SplitN(addr, ":", 2)
 	if len(tmp) != 2 {
 		port := ":80"
