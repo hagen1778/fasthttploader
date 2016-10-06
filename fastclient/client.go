@@ -1,4 +1,4 @@
-package metrics
+package fastclient
 
 import (
 	"flag"
@@ -22,9 +22,11 @@ var (
 	httpClientWriteBufferSize = flag.Int("httpClientWriteBufferSize", 8*1024, "Per-connection write buffer size for httpclient")
 )
 
-const jobCapacity = 10000
-const maxIdleConnDuration = time.Second
-const maxConns = 1<<31 - 1
+const (
+	jobCapacity         = 10000
+	maxIdleConnDuration = time.Second
+	maxConns            = 1<<31 - 1
+)
 
 type Client struct {
 	*fasthttp.HostClient

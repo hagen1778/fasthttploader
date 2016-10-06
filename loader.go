@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/cheggaaa/pb"
-	"github.com/hagen1778/fasthttploader/metrics"
+	"github.com/hagen1778/fasthttploader/fastclient"
 	"github.com/hagen1778/fasthttploader/pushgateway"
 	"github.com/hagen1778/fasthttploader/ratelimiter"
 	"github.com/hagen1778/fasthttploader/report"
@@ -27,7 +27,7 @@ const (
 
 var (
 	// client do http requests, populate metrics
-	client *metrics.Client
+	client *fastclient.Client
 
 	// report represent html-report
 	r *report.Page
@@ -50,7 +50,7 @@ type loadConfig struct {
 }
 
 func run() {
-	client = metrics.New(req, *t)
+	client = fastclient.New(req, *t)
 	pushgateway.Init()
 	r = &report.Page{
 		Title:           string(req.URI().Host()),
@@ -93,9 +93,9 @@ func burstThroughput(cfg *loadConfig) {
 		select {
 		case <-timeout:
 			finishProgressBar(bar)
-			cfg.qps = float64(metrics.RequestSum()) / calibrateDuration.Seconds()
+			cfg.qps = float64(client.RequestSum()) / calibrateDuration.Seconds()
 			cfg.c = client.Amount()
-			if (metrics.Errors()/metrics.RequestSum())*100 > 2 { // just more than 2% of errors
+			if (client.Errors()/client.RequestSum())*100 > 2 { // just more than 2% of errors
 				cfg.qps /= 2
 				cfg.c /= 2
 			}
@@ -213,27 +213,27 @@ func printState() {
 		fmt.Println("------------")
 		fmt.Printf("[ Multiplier = %f ]\n", multiplier)
 		fmt.Printf("QPS was increased to: %f\nWorkers: %d\nJobsch len: %d\n", throttle.Limit(), client.Amount(), client.Overflow())
-		fmt.Printf(" >> Num of cons: %d; Req done: %d; Errors: %d; Timeouts: %d\n", metrics.ConnOpen(), metrics.RequestSum(), metrics.Errors(), metrics.Timeouts())
+		fmt.Printf(" >> Num of cons: %d; Req done: %d; Errors: %d; Timeouts: %d\n", client.ConnOpen(), client.RequestSum(), client.Errors(), client.Timeouts())
 		//fmt.Printf(" >> Real Req/s: %f; Transfer/s: %f kb;\n", float64(metrics.RequestSum())/since, float64(metrics.BytesWritten())/(since*1024))
 		fmt.Println("------------")
 	}
 
 	r.Lock()
-	r.Connections = append(r.Connections, metrics.ConnOpen())
-	r.Errors = append(r.Errors, metrics.Errors())
-	r.Timeouts = append(r.Timeouts, metrics.Timeouts())
-	r.RequestSum = append(r.RequestSum, metrics.RequestSum())
-	r.RequestSuccess = append(r.RequestSuccess, metrics.RequestSuccess())
-	r.BytesWritten = append(r.BytesWritten, metrics.BytesWritten())
-	r.BytesRead = append(r.BytesRead, metrics.BytesRead())
+	r.Connections = append(r.Connections, client.ConnOpen())
+	r.Errors = append(r.Errors, client.Errors())
+	r.Timeouts = append(r.Timeouts, client.Timeouts())
+	r.RequestSum = append(r.RequestSum, client.RequestSum())
+	r.RequestSuccess = append(r.RequestSuccess, client.RequestSuccess())
+	r.BytesWritten = append(r.BytesWritten, client.BytesWritten())
+	r.BytesRead = append(r.BytesRead, client.BytesRead())
 	r.Qps = append(r.Qps, uint64(throttle.Limit()))
-	r.UpdateRequestDuration(metrics.RequestDuration())
+	r.UpdateRequestDuration(client.RequestDuration())
 	r.Unlock()
 }
 
 func isFlawed() bool {
-	if metrics.Errors() > 0 && errors != metrics.Errors() {
-		errors = metrics.Errors()
+	if client.Errors() > 0 && errors != client.Errors() {
+		errors = client.Errors()
 		return true
 	}
 
@@ -256,9 +256,9 @@ func printSummary(stage string, t time.Time) {
 	since := time.Since(t).Seconds()
 	fmt.Printf("\n------ %s ------\n", stage)
 	fmt.Printf("Elapsed time: %fs\n", since)
-	fmt.Printf("Req done: %d; Success: %f %%\n", metrics.RequestSum(), (float64(metrics.RequestSuccess())/float64(metrics.RequestSum()))*100)
-	fmt.Printf("Rps: %f; Connections: %d\n", float64(metrics.RequestSum())/since, metrics.ConnOpen())
-	fmt.Printf("Errors: %d; Timeouts: %d\n\n", metrics.Errors(), metrics.Timeouts())
+	fmt.Printf("Req done: %d; Success: %f %%\n", client.RequestSum(), (float64(client.RequestSuccess())/float64(client.RequestSum()))*100)
+	fmt.Printf("Rps: %f; Connections: %d\n", float64(client.RequestSum())/since, client.ConnOpen())
+	fmt.Printf("Errors: %d; Timeouts: %d\n\n", client.Errors(), client.Timeouts())
 }
 
 func acquireProgressBar(t time.Duration) (*pb.ProgressBar, <-chan time.Time) {
