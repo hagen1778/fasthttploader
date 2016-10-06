@@ -47,7 +47,6 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
 		flag.PrintDefaults()
-		os.Exit(1)
 	}
 
 	flag.Parse()
@@ -56,7 +55,7 @@ func main() {
 	}
 
 	if *d < time.Second*20 {
-		usageAndExit("Duratiion cant be less than 20s")
+		usageAndExit("Duration cant be less than 20s")
 	}
 
 	if *cpuprofile != "" {
@@ -115,9 +114,11 @@ func applyHeaders() {
 }
 
 func usageAndExit(msg string) {
+	flag.Usage()
 	if msg != "" {
+		fmt.Print("----------------------------\nErr: ")
 		fmt.Fprintf(os.Stderr, msg)
 		fmt.Fprintf(os.Stderr, "\n\n")
 	}
-	flag.Usage()
+	os.Exit(1)
 }

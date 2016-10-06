@@ -10,13 +10,13 @@ import (
 	"github.com/cheggaaa/pb"
 	"github.com/hagen1778/fasthttploader/metrics"
 	"github.com/hagen1778/fasthttploader/pushgateway"
+	"github.com/hagen1778/fasthttploader/ratelimiter"
 	"github.com/hagen1778/fasthttploader/report"
-	"golang.org/x/time/rate"
 )
 
 const (
 	// Duration of burst-testing, without qps-limit. Used to estimate start test conditions
-	calibrateDuration = 10 * time.Second
+	calibrateDuration = 5 * time.Second
 
 	// Duration of adjustable testing, while trying to reach max qps with minimal lvl of errors
 	adjustmentDuration = 30 * time.Second
@@ -38,12 +38,12 @@ var (
 	// multiplier is a coefficient of qps multiplying during tests
 	multiplier = float64(0.1)
 
-	throttle = rate.NewLimiter(1, 1)
+	throttle = ratelimiter.NewLimiter()
 )
 
 type loadConfig struct {
 	// qps is the rate limit.
-	qps rate.Limit
+	qps float64
 
 	// c is a number of workers (clients)
 	c int
@@ -66,7 +66,7 @@ func run() {
 		fmt.Println("Run calibrate phase")
 		calibrateThroughput(&cfg)
 	} else {
-		cfg.qps = rate.Limit(*q)
+		cfg.qps = float64(*q)
 		cfg.c = *c
 	}
 
@@ -93,7 +93,7 @@ func burstThroughput(cfg *loadConfig) {
 		select {
 		case <-timeout:
 			finishProgressBar(bar)
-			cfg.qps = rate.Limit(float64(metrics.RequestSum()) / calibrateDuration.Seconds())
+			cfg.qps = float64(metrics.RequestSum()) / calibrateDuration.Seconds()
 			cfg.c = client.Amount()
 			if (metrics.Errors()/metrics.RequestSum())*100 > 2 { // just more than 3% of errors
 				cfg.qps /= 2
@@ -155,7 +155,7 @@ func calibrate() {
 			client.RunWorkers(n)
 			await += 1
 		} else {
-			throttle.SetLimit(throttle.Limit() * rate.Limit(1+multiplier))
+			throttle.SetLimit(throttle.Limit() * (1 + multiplier))
 			await += 1
 		}
 	} else {
@@ -185,6 +185,7 @@ func makeLoad(cfg *loadConfig) {
 				cancel()
 				finishProgressBar(bar)
 				printSummary("Loading test", startTime)
+				throttle.Stop()
 				return
 			case <-stepTick:
 				if steps >= 10-1 {
@@ -245,10 +246,7 @@ func load(ctx context.Context) {
 		case <-ctx.Done():
 			client.Flush()
 			return
-		default:
-			if err := throttle.Wait(ctx); err != nil {
-				fmt.Println(err)
-			}
+		case <-throttle.QPS():
 			client.Jobsch <- struct{}{}
 		}
 	}
