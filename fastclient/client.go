@@ -29,18 +29,23 @@ const (
 	maxConns            = 1<<31 - 1
 )
 
+// Client is a wrapper for fasthttp.HostClient
+// It allows to send requests and collect metrics while sending
 type Client struct {
+	// Jobsch is a channel of tasks(requests) which should be done
+	Jobsch chan struct{}
+
 	*fasthttp.HostClient
 	wg      sync.WaitGroup
 	timeout time.Duration
 	request *fasthttp.Request
 
 	sync.Mutex
-	Jobsch           chan struct{}
 	workers          int
 	statusCodeLabels map[int]prometheus.Labels
 }
 
+// New creates new client
 func New(request *fasthttp.Request, timeout time.Duration) *Client {
 	registerMetrics()
 	addr, isTLS := acquireAddr(request)
@@ -59,6 +64,8 @@ func New(request *fasthttp.Request, timeout time.Duration) *Client {
 	}
 }
 
+// Amount return of created workers
+// After Flush() workers would flushed too
 func (c *Client) Amount() int {
 	c.Lock()
 	defer c.Unlock()
@@ -66,6 +73,8 @@ func (c *Client) Amount() int {
 	return c.workers
 }
 
+// Overflow return length of job-channel
+// After Flush() channel would flushed too
 func (c *Client) Overflow() int {
 	c.Lock()
 	defer c.Unlock()
@@ -84,6 +93,7 @@ func drainChan(ch chan struct{}) {
 	}
 }
 
+// Flush dropping out and re-init all counters and metrics
 func (c *Client) Flush() {
 	drainChan(c.Jobsch)
 	close(c.Jobsch)
@@ -94,6 +104,7 @@ func (c *Client) Flush() {
 	c.Jobsch = make(chan struct{}, jobCapacity)
 }
 
+// RunWorkers runs n goroutines to serve jobs from Jobsch
 func (c *Client) RunWorkers(n int) {
 	for i := 0; i < n; i++ {
 		c.wg.Add(1)
