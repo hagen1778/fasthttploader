@@ -22,6 +22,7 @@ type Page struct {
 	BytesWritten []uint64
 	BytesRead []uint64
 	RequestDuration map[float64][]float64
+	StatusCodes map[string]float64
 }
 
 type seriesFunc func() string
@@ -55,6 +56,7 @@ type seriesFunc func() string
 		{%= p.simpleChart("qps", p.qpsSeries) %}
 		{%= p.simpleChart("errors-vs-timeouts", p.errorSeries) %}
 		{%= p.simpleChart("latency", p.durationSeries) %}
+		{%= p.pieChart("status-codes", p.statusCodesSeries) %}
 		{%= p.bytesChart("written-vs-read", p.bytesSeries) %}
 	</body>
 </html>
@@ -64,27 +66,27 @@ type seriesFunc func() string
 	<script>
 	$(function () {
     			$('#{%s= title %}').highcharts({
-                				title: {
-                					text: '{%s= strings.Title(title) %}',
-                					x: -20 //center
-                				},
-                				xAxis: {
-                					type: 'linear',
-                				},
-                				legend: {
-                					layout: 'vertical',
-                					align: 'right',
-                					verticalAlign: 'middle',
-                					borderWidth: 0
-                				},
-                				plotOptions: {
-									series: {
-										pointStart: 0,
-										pointInterval: {%f.2= p.Interval %},
-									}
-								},
-                				series: {%s= fn() %}
-                			});
+					title: {
+						text: '{%s= strings.Title(title) %}',
+						x: -20 //center
+					},
+					xAxis: {
+						type: 'linear',
+					},
+					legend: {
+						layout: 'vertical',
+						align: 'right',
+						verticalAlign: 'middle',
+						borderWidth: 0
+					},
+					plotOptions: {
+						series: {
+							pointStart: 0,
+							pointInterval: {%f.2= p.Interval %},
+						}
+					},
+					series: {%s= fn() %}
+				});
     		});
     </script>
    	<div id="{%s= title %}" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
@@ -94,37 +96,70 @@ type seriesFunc func() string
 	<script>
 	$(function () {
     			$('#{%s= title %}').highcharts({
-                				title: {
-                					text: '{%s= strings.Title(title) %}',
-                					x: -20 //center
-                				},
-                				xAxis: {
-                					type: 'linear',
-                				},
-                				yAxis: {
-									labels: {
-										formatter: function() { return bytes(this.value, true); }
-									},
-									min: 0,
-								},
-								tooltip: {
-									enabled: true,
-									formatter: function() { return bytes(this.y, true);}
-								},
-                				legend: {
-                					layout: 'vertical',
-                					align: 'right',
-                					verticalAlign: 'middle',
-                					borderWidth: 0
-                				},
-                				plotOptions: {
-									series: {
-										pointStart: 0,
-										pointInterval: {%f.2= p.Interval %},
-									}
-								},
-                				series: {%s= fn() %}
-                			});
+					title: {
+						text: '{%s= strings.Title(title) %}',
+						x: -20 //center
+					},
+					xAxis: {
+						type: 'linear',
+					},
+					yAxis: {
+						labels: {
+							formatter: function() { return bytes(this.value, true); }
+						},
+						min: 0,
+					},
+					tooltip: {
+						enabled: true,
+						formatter: function() { return bytes(this.y, true);}
+					},
+					legend: {
+						layout: 'vertical',
+						align: 'right',
+						verticalAlign: 'middle',
+						borderWidth: 0
+					},
+					plotOptions: {
+						series: {
+							pointStart: 0,
+							pointInterval: {%f.2= p.Interval %},
+						}
+					},
+					series: {%s= fn() %}
+				});
+    		});
+    </script>
+   	<div id="{%s= title %}" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+{% endfunc %}
+
+{% func (p *Page) pieChart(title string, fn seriesFunc) %}
+	<script>
+	$(function () {
+    			$('#{%s= title %}').highcharts({
+					chart: {
+						plotBackgroundColor: null,
+						plotBorderWidth: null,
+						plotShadow: false,
+						type: 'pie'
+					},
+					title: {
+						text: '{%s= strings.Title(title) %}',
+					},
+					 tooltip: {
+						pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+					},
+					plotOptions: {
+						pie: {
+							allowPointSelect: true,
+							cursor: 'pointer',
+							dataLabels: {
+								enabled: false
+							},
+							showInLegend: true
+						}
+					},
+					series: {%s= fn() %}
+				});
     		});
     </script>
    	<div id="{%s= title %}" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
@@ -188,7 +223,24 @@ type seriesFunc func() string
     	},{
     		name: 'BytesRead',
     		data: [{%s= float64SliceToString(rate(p.BytesRead, p.Interval)) %}]
-    	}]
+	}]
+{% endfunc %}
+{% endstripspace %}
+
+{% stripspace %}
+{% func (p *Page) statusCodesSeries() %}
+	[{
+	name: 'Status codes',
+	colorByPoint: true,
+	data: [
+		{% for k, v := range p.StatusCodes %}
+			{
+				name: '{%s= k %}',
+				y: {%f.2= v %}
+			},
+		{% endfor %}
+	]
+	}]
 {% endfunc %}
 {% endstripspace %}
 

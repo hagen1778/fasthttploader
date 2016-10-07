@@ -42,48 +42,49 @@ type Page struct {
 	BytesWritten    []uint64
 	BytesRead       []uint64
 	RequestDuration map[float64][]float64
+	StatusCodes     map[string]float64
 }
 
 type seriesFunc func() string
 
-//line report/report.qtpl:30
+//line report/report.qtpl:31
 func (p *Page) streamtitle(qw422016 *qt422016.Writer) {
-//line report/report.qtpl:30
+//line report/report.qtpl:31
 qw422016.E().S(p.Title) }
 
-//line report/report.qtpl:30
-//line report/report.qtpl:30
+//line report/report.qtpl:31
+//line report/report.qtpl:31
 func (p *Page) writetitle(qq422016 qtio422016.Writer) {
-	//line report/report.qtpl:30
+	//line report/report.qtpl:31
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:30
+	//line report/report.qtpl:31
 	p.streamtitle(qw422016)
-	//line report/report.qtpl:30
+	//line report/report.qtpl:31
 	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:30
+//line report/report.qtpl:31
 }
 
-//line report/report.qtpl:30
+//line report/report.qtpl:31
 func (p *Page) title() string {
-	//line report/report.qtpl:30
+	//line report/report.qtpl:31
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:30
+	//line report/report.qtpl:31
 	p.writetitle(qb422016)
-	//line report/report.qtpl:30
+	//line report/report.qtpl:31
 	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:30
+	//line report/report.qtpl:31
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:30
+	//line report/report.qtpl:31
 	return qs422016
-//line report/report.qtpl:30
+//line report/report.qtpl:31
 }
 
-//line report/report.qtpl:32
+//line report/report.qtpl:33
 func (p *Page) StreamUpdateRequestDuration(qw422016 *qt422016.Writer, d map[float64]float64) {
-	//line report/report.qtpl:32
+	//line report/report.qtpl:33
 	qw422016.N().S(`
 	`)
-	//line report/report.qtpl:34
+	//line report/report.qtpl:35
 	for k, v := range d {
 		if _, ok := p.RequestDuration[k]; !ok {
 			p.RequestDuration[k] = make([]float64, 0)
@@ -92,535 +93,669 @@ func (p *Page) StreamUpdateRequestDuration(qw422016 *qt422016.Writer, d map[floa
 		p.RequestDuration[k] = append(p.RequestDuration[k], v)
 	}
 
-	//line report/report.qtpl:41
+	//line report/report.qtpl:42
 	qw422016.N().S(`
 `)
-//line report/report.qtpl:42
+//line report/report.qtpl:43
 }
 
-//line report/report.qtpl:42
+//line report/report.qtpl:43
 func (p *Page) WriteUpdateRequestDuration(qq422016 qtio422016.Writer, d map[float64]float64) {
-	//line report/report.qtpl:42
+	//line report/report.qtpl:43
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:42
+	//line report/report.qtpl:43
 	p.StreamUpdateRequestDuration(qw422016, d)
-	//line report/report.qtpl:42
+	//line report/report.qtpl:43
 	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:42
+//line report/report.qtpl:43
 }
 
-//line report/report.qtpl:42
+//line report/report.qtpl:43
 func (p *Page) UpdateRequestDuration(d map[float64]float64) string {
-	//line report/report.qtpl:42
+	//line report/report.qtpl:43
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:42
+	//line report/report.qtpl:43
 	p.WriteUpdateRequestDuration(qb422016, d)
-	//line report/report.qtpl:42
+	//line report/report.qtpl:43
 	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:42
+	//line report/report.qtpl:43
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:42
+	//line report/report.qtpl:43
 	return qs422016
-//line report/report.qtpl:42
+//line report/report.qtpl:43
 }
 
-//line report/report.qtpl:44
+//line report/report.qtpl:45
 func StreamPrintPage(qw422016 *qt422016.Writer, p *Page) {
-	//line report/report.qtpl:44
+	//line report/report.qtpl:45
 	qw422016.N().S(`
 <html>
 	<head>
 		<title>`)
-	//line report/report.qtpl:47
+	//line report/report.qtpl:48
 	p.streamtitle(qw422016)
-	//line report/report.qtpl:47
+	//line report/report.qtpl:48
 	qw422016.N().S(`</title>
 		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/highcharts.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
 		<script type="text/javascript">`)
-	//line report/report.qtpl:51
+	//line report/report.qtpl:52
 	qw422016.N().S(jsUtils())
-	//line report/report.qtpl:51
+	//line report/report.qtpl:52
 	qw422016.N().S(`</script>
 	</head>
 	 <body>
 		`)
-	//line report/report.qtpl:54
+	//line report/report.qtpl:55
 	p.streamsimpleChart(qw422016, "connections", p.connectionSeries)
-	//line report/report.qtpl:54
+	//line report/report.qtpl:55
 	qw422016.N().S(`
 		`)
-	//line report/report.qtpl:55
+	//line report/report.qtpl:56
 	p.streamsimpleChart(qw422016, "qps", p.qpsSeries)
-	//line report/report.qtpl:55
+	//line report/report.qtpl:56
 	qw422016.N().S(`
 		`)
-	//line report/report.qtpl:56
+	//line report/report.qtpl:57
 	p.streamsimpleChart(qw422016, "errors-vs-timeouts", p.errorSeries)
-	//line report/report.qtpl:56
+	//line report/report.qtpl:57
 	qw422016.N().S(`
 		`)
-	//line report/report.qtpl:57
+	//line report/report.qtpl:58
 	p.streamsimpleChart(qw422016, "latency", p.durationSeries)
-	//line report/report.qtpl:57
+	//line report/report.qtpl:58
 	qw422016.N().S(`
 		`)
-	//line report/report.qtpl:58
+	//line report/report.qtpl:59
+	p.streampieChart(qw422016, "status-codes", p.statusCodesSeries)
+	//line report/report.qtpl:59
+	qw422016.N().S(`
+		`)
+	//line report/report.qtpl:60
 	p.streambytesChart(qw422016, "written-vs-read", p.bytesSeries)
-	//line report/report.qtpl:58
+	//line report/report.qtpl:60
 	qw422016.N().S(`
 	</body>
 </html>
 `)
-//line report/report.qtpl:61
-}
-
-//line report/report.qtpl:61
-func WritePrintPage(qq422016 qtio422016.Writer, p *Page) {
-	//line report/report.qtpl:61
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:61
-	StreamPrintPage(qw422016, p)
-	//line report/report.qtpl:61
-	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:61
-}
-
-//line report/report.qtpl:61
-func PrintPage(p *Page) string {
-	//line report/report.qtpl:61
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:61
-	WritePrintPage(qb422016, p)
-	//line report/report.qtpl:61
-	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:61
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:61
-	return qs422016
-//line report/report.qtpl:61
+//line report/report.qtpl:63
 }
 
 //line report/report.qtpl:63
-func (p *Page) streamsimpleChart(qw422016 *qt422016.Writer, title string, fn seriesFunc) {
+func WritePrintPage(qq422016 qtio422016.Writer, p *Page) {
 	//line report/report.qtpl:63
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line report/report.qtpl:63
+	StreamPrintPage(qw422016, p)
+	//line report/report.qtpl:63
+	qt422016.ReleaseWriter(qw422016)
+//line report/report.qtpl:63
+}
+
+//line report/report.qtpl:63
+func PrintPage(p *Page) string {
+	//line report/report.qtpl:63
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line report/report.qtpl:63
+	WritePrintPage(qb422016, p)
+	//line report/report.qtpl:63
+	qs422016 := string(qb422016.B)
+	//line report/report.qtpl:63
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line report/report.qtpl:63
+	return qs422016
+//line report/report.qtpl:63
+}
+
+//line report/report.qtpl:65
+func (p *Page) streamsimpleChart(qw422016 *qt422016.Writer, title string, fn seriesFunc) {
+	//line report/report.qtpl:65
 	qw422016.N().S(`
 	<script>
 	$(function () {
     			$('#`)
-	//line report/report.qtpl:66
+	//line report/report.qtpl:68
 	qw422016.N().S(title)
-	//line report/report.qtpl:66
+	//line report/report.qtpl:68
 	qw422016.N().S(`').highcharts({
-                				title: {
-                					text: '`)
-	//line report/report.qtpl:68
+					title: {
+						text: '`)
+	//line report/report.qtpl:70
 	qw422016.N().S(strings.Title(title))
-	//line report/report.qtpl:68
+	//line report/report.qtpl:70
 	qw422016.N().S(`',
-                					x: -20 //center
-                				},
-                				xAxis: {
-                					type: 'linear',
-                				},
-                				legend: {
-                					layout: 'vertical',
-                					align: 'right',
-                					verticalAlign: 'middle',
-                					borderWidth: 0
-                				},
-                				plotOptions: {
-									series: {
-										pointStart: 0,
-										pointInterval: `)
-	//line report/report.qtpl:83
+						x: -20 //center
+					},
+					xAxis: {
+						type: 'linear',
+					},
+					legend: {
+						layout: 'vertical',
+						align: 'right',
+						verticalAlign: 'middle',
+						borderWidth: 0
+					},
+					plotOptions: {
+						series: {
+							pointStart: 0,
+							pointInterval: `)
+	//line report/report.qtpl:85
 	qw422016.N().FPrec(p.Interval, 2)
-	//line report/report.qtpl:83
+	//line report/report.qtpl:85
 	qw422016.N().S(`,
-									}
-								},
-                				series: `)
-	//line report/report.qtpl:86
+						}
+					},
+					series: `)
+	//line report/report.qtpl:88
 	qw422016.N().S(fn())
-	//line report/report.qtpl:86
+	//line report/report.qtpl:88
 	qw422016.N().S(`
-                			});
+				});
     		});
     </script>
    	<div id="`)
-	//line report/report.qtpl:90
+	//line report/report.qtpl:92
 	qw422016.N().S(title)
-	//line report/report.qtpl:90
+	//line report/report.qtpl:92
 	qw422016.N().S(`" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
 `)
-//line report/report.qtpl:91
-}
-
-//line report/report.qtpl:91
-func (p *Page) writesimpleChart(qq422016 qtio422016.Writer, title string, fn seriesFunc) {
-	//line report/report.qtpl:91
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:91
-	p.streamsimpleChart(qw422016, title, fn)
-	//line report/report.qtpl:91
-	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:91
-}
-
-//line report/report.qtpl:91
-func (p *Page) simpleChart(title string, fn seriesFunc) string {
-	//line report/report.qtpl:91
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:91
-	p.writesimpleChart(qb422016, title, fn)
-	//line report/report.qtpl:91
-	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:91
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:91
-	return qs422016
-//line report/report.qtpl:91
+//line report/report.qtpl:93
 }
 
 //line report/report.qtpl:93
-func (p *Page) streambytesChart(qw422016 *qt422016.Writer, title string, fn seriesFunc) {
+func (p *Page) writesimpleChart(qq422016 qtio422016.Writer, title string, fn seriesFunc) {
 	//line report/report.qtpl:93
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line report/report.qtpl:93
+	p.streamsimpleChart(qw422016, title, fn)
+	//line report/report.qtpl:93
+	qt422016.ReleaseWriter(qw422016)
+//line report/report.qtpl:93
+}
+
+//line report/report.qtpl:93
+func (p *Page) simpleChart(title string, fn seriesFunc) string {
+	//line report/report.qtpl:93
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line report/report.qtpl:93
+	p.writesimpleChart(qb422016, title, fn)
+	//line report/report.qtpl:93
+	qs422016 := string(qb422016.B)
+	//line report/report.qtpl:93
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line report/report.qtpl:93
+	return qs422016
+//line report/report.qtpl:93
+}
+
+//line report/report.qtpl:95
+func (p *Page) streambytesChart(qw422016 *qt422016.Writer, title string, fn seriesFunc) {
+	//line report/report.qtpl:95
 	qw422016.N().S(`
 	<script>
 	$(function () {
     			$('#`)
-	//line report/report.qtpl:96
+	//line report/report.qtpl:98
 	qw422016.N().S(title)
-	//line report/report.qtpl:96
+	//line report/report.qtpl:98
 	qw422016.N().S(`').highcharts({
-                				title: {
-                					text: '`)
-	//line report/report.qtpl:98
+					title: {
+						text: '`)
+	//line report/report.qtpl:100
 	qw422016.N().S(strings.Title(title))
-	//line report/report.qtpl:98
+	//line report/report.qtpl:100
 	qw422016.N().S(`',
-                					x: -20 //center
-                				},
-                				xAxis: {
-                					type: 'linear',
-                				},
-                				yAxis: {
-									labels: {
-										formatter: function() { return bytes(this.value, true); }
-									},
-									min: 0,
-								},
-								tooltip: {
-									enabled: true,
-									formatter: function() { return bytes(this.y, true);}
-								},
-                				legend: {
-                					layout: 'vertical',
-                					align: 'right',
-                					verticalAlign: 'middle',
-                					borderWidth: 0
-                				},
-                				plotOptions: {
-									series: {
-										pointStart: 0,
-										pointInterval: `)
-	//line report/report.qtpl:123
+						x: -20 //center
+					},
+					xAxis: {
+						type: 'linear',
+					},
+					yAxis: {
+						labels: {
+							formatter: function() { return bytes(this.value, true); }
+						},
+						min: 0,
+					},
+					tooltip: {
+						enabled: true,
+						formatter: function() { return bytes(this.y, true);}
+					},
+					legend: {
+						layout: 'vertical',
+						align: 'right',
+						verticalAlign: 'middle',
+						borderWidth: 0
+					},
+					plotOptions: {
+						series: {
+							pointStart: 0,
+							pointInterval: `)
+	//line report/report.qtpl:125
 	qw422016.N().FPrec(p.Interval, 2)
-	//line report/report.qtpl:123
+	//line report/report.qtpl:125
 	qw422016.N().S(`,
-									}
-								},
-                				series: `)
-	//line report/report.qtpl:126
+						}
+					},
+					series: `)
+	//line report/report.qtpl:128
 	qw422016.N().S(fn())
-	//line report/report.qtpl:126
+	//line report/report.qtpl:128
 	qw422016.N().S(`
-                			});
+				});
     		});
     </script>
    	<div id="`)
-	//line report/report.qtpl:130
+	//line report/report.qtpl:132
 	qw422016.N().S(title)
-	//line report/report.qtpl:130
+	//line report/report.qtpl:132
 	qw422016.N().S(`" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
 `)
-//line report/report.qtpl:131
-}
-
-//line report/report.qtpl:131
-func (p *Page) writebytesChart(qq422016 qtio422016.Writer, title string, fn seriesFunc) {
-	//line report/report.qtpl:131
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:131
-	p.streambytesChart(qw422016, title, fn)
-	//line report/report.qtpl:131
-	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:131
-}
-
-//line report/report.qtpl:131
-func (p *Page) bytesChart(title string, fn seriesFunc) string {
-	//line report/report.qtpl:131
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:131
-	p.writebytesChart(qb422016, title, fn)
-	//line report/report.qtpl:131
-	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:131
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:131
-	return qs422016
-//line report/report.qtpl:131
+//line report/report.qtpl:133
 }
 
 //line report/report.qtpl:133
-func (p *Page) streamconnectionSeries(qw422016 *qt422016.Writer) {
+func (p *Page) writebytesChart(qq422016 qtio422016.Writer, title string, fn seriesFunc) {
 	//line report/report.qtpl:133
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line report/report.qtpl:133
+	p.streambytesChart(qw422016, title, fn)
+	//line report/report.qtpl:133
+	qt422016.ReleaseWriter(qw422016)
+//line report/report.qtpl:133
+}
+
+//line report/report.qtpl:133
+func (p *Page) bytesChart(title string, fn seriesFunc) string {
+	//line report/report.qtpl:133
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line report/report.qtpl:133
+	p.writebytesChart(qb422016, title, fn)
+	//line report/report.qtpl:133
+	qs422016 := string(qb422016.B)
+	//line report/report.qtpl:133
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line report/report.qtpl:133
+	return qs422016
+//line report/report.qtpl:133
+}
+
+//line report/report.qtpl:135
+func (p *Page) streampieChart(qw422016 *qt422016.Writer, title string, fn seriesFunc) {
+	//line report/report.qtpl:135
+	qw422016.N().S(`
+	<script>
+	$(function () {
+    			$('#`)
+	//line report/report.qtpl:138
+	qw422016.N().S(title)
+	//line report/report.qtpl:138
+	qw422016.N().S(`').highcharts({
+					chart: {
+						plotBackgroundColor: null,
+						plotBorderWidth: null,
+						plotShadow: false,
+						type: 'pie'
+					},
+					title: {
+						text: '`)
+	//line report/report.qtpl:146
+	qw422016.N().S(strings.Title(title))
+	//line report/report.qtpl:146
+	qw422016.N().S(`',
+					},
+					 tooltip: {
+						pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+					},
+					plotOptions: {
+						pie: {
+							allowPointSelect: true,
+							cursor: 'pointer',
+							dataLabels: {
+								enabled: false
+							},
+							showInLegend: true
+						}
+					},
+					series: `)
+	//line report/report.qtpl:161
+	qw422016.N().S(fn())
+	//line report/report.qtpl:161
+	qw422016.N().S(`
+				});
+    		});
+    </script>
+   	<div id="`)
+	//line report/report.qtpl:165
+	qw422016.N().S(title)
+	//line report/report.qtpl:165
+	qw422016.N().S(`" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+`)
+//line report/report.qtpl:166
+}
+
+//line report/report.qtpl:166
+func (p *Page) writepieChart(qq422016 qtio422016.Writer, title string, fn seriesFunc) {
+	//line report/report.qtpl:166
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line report/report.qtpl:166
+	p.streampieChart(qw422016, title, fn)
+	//line report/report.qtpl:166
+	qt422016.ReleaseWriter(qw422016)
+//line report/report.qtpl:166
+}
+
+//line report/report.qtpl:166
+func (p *Page) pieChart(title string, fn seriesFunc) string {
+	//line report/report.qtpl:166
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line report/report.qtpl:166
+	p.writepieChart(qb422016, title, fn)
+	//line report/report.qtpl:166
+	qs422016 := string(qb422016.B)
+	//line report/report.qtpl:166
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line report/report.qtpl:166
+	return qs422016
+//line report/report.qtpl:166
+}
+
+//line report/report.qtpl:168
+func (p *Page) streamconnectionSeries(qw422016 *qt422016.Writer) {
+	//line report/report.qtpl:168
 	qw422016.N().S(`
 	[{
 		name: 'Connections',
 		data: [`)
-	//line report/report.qtpl:136
+	//line report/report.qtpl:171
 	qw422016.N().S(uint64SliceToString(p.Connections))
-	//line report/report.qtpl:136
+	//line report/report.qtpl:171
 	qw422016.N().S(`]
 	}]
 `)
-//line report/report.qtpl:138
+//line report/report.qtpl:173
 }
 
-//line report/report.qtpl:138
+//line report/report.qtpl:173
 func (p *Page) writeconnectionSeries(qq422016 qtio422016.Writer) {
-	//line report/report.qtpl:138
+	//line report/report.qtpl:173
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:138
+	//line report/report.qtpl:173
 	p.streamconnectionSeries(qw422016)
-	//line report/report.qtpl:138
+	//line report/report.qtpl:173
 	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:138
+//line report/report.qtpl:173
 }
 
-//line report/report.qtpl:138
+//line report/report.qtpl:173
 func (p *Page) connectionSeries() string {
-	//line report/report.qtpl:138
+	//line report/report.qtpl:173
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:138
+	//line report/report.qtpl:173
 	p.writeconnectionSeries(qb422016)
-	//line report/report.qtpl:138
+	//line report/report.qtpl:173
 	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:138
+	//line report/report.qtpl:173
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:138
+	//line report/report.qtpl:173
 	return qs422016
-//line report/report.qtpl:138
+//line report/report.qtpl:173
 }
 
-//line report/report.qtpl:140
+//line report/report.qtpl:175
 func (p *Page) streamqpsSeries(qw422016 *qt422016.Writer) {
-	//line report/report.qtpl:140
+	//line report/report.qtpl:175
 	qw422016.N().S(`
 	[{
 		name: 'Qps',
 		data: [`)
-	//line report/report.qtpl:143
+	//line report/report.qtpl:178
 	qw422016.N().S(uint64SliceToString(p.Qps))
-	//line report/report.qtpl:143
+	//line report/report.qtpl:178
 	qw422016.N().S(`]
 	},
 	{
 		name: 'Req-per-sample',
 		data: [`)
-	//line report/report.qtpl:147
+	//line report/report.qtpl:182
 	qw422016.N().S(float64SliceToString(rate(p.RequestSum, p.Interval)))
-	//line report/report.qtpl:147
+	//line report/report.qtpl:182
 	qw422016.N().S(`]
 	}]
 `)
-//line report/report.qtpl:149
+//line report/report.qtpl:184
 }
 
-//line report/report.qtpl:149
+//line report/report.qtpl:184
 func (p *Page) writeqpsSeries(qq422016 qtio422016.Writer) {
-	//line report/report.qtpl:149
+	//line report/report.qtpl:184
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:149
+	//line report/report.qtpl:184
 	p.streamqpsSeries(qw422016)
-	//line report/report.qtpl:149
+	//line report/report.qtpl:184
 	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:149
+//line report/report.qtpl:184
 }
 
-//line report/report.qtpl:149
+//line report/report.qtpl:184
 func (p *Page) qpsSeries() string {
-	//line report/report.qtpl:149
+	//line report/report.qtpl:184
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:149
+	//line report/report.qtpl:184
 	p.writeqpsSeries(qb422016)
-	//line report/report.qtpl:149
+	//line report/report.qtpl:184
 	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:149
+	//line report/report.qtpl:184
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:149
+	//line report/report.qtpl:184
 	return qs422016
-//line report/report.qtpl:149
+//line report/report.qtpl:184
 }
 
-//line report/report.qtpl:151
+//line report/report.qtpl:186
 func (p *Page) streamerrorSeries(qw422016 *qt422016.Writer) {
-	//line report/report.qtpl:151
+	//line report/report.qtpl:186
 	qw422016.N().S(`
 	[{
 		name: 'Errors',
 		data: [`)
-	//line report/report.qtpl:154
+	//line report/report.qtpl:189
 	qw422016.N().S(float64SliceToString(rate(p.Errors, p.Interval)))
-	//line report/report.qtpl:154
+	//line report/report.qtpl:189
 	qw422016.N().S(`]
 	},{
 		name: 'Timeouts',
 		data: [`)
-	//line report/report.qtpl:157
+	//line report/report.qtpl:192
 	qw422016.N().S(float64SliceToString(rate(p.Timeouts, p.Interval)))
-	//line report/report.qtpl:157
+	//line report/report.qtpl:192
 	qw422016.N().S(`]
 	}]
 `)
-//line report/report.qtpl:159
+//line report/report.qtpl:194
 }
 
-//line report/report.qtpl:159
+//line report/report.qtpl:194
 func (p *Page) writeerrorSeries(qq422016 qtio422016.Writer) {
-	//line report/report.qtpl:159
+	//line report/report.qtpl:194
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:159
+	//line report/report.qtpl:194
 	p.streamerrorSeries(qw422016)
-	//line report/report.qtpl:159
+	//line report/report.qtpl:194
 	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:159
+//line report/report.qtpl:194
 }
 
-//line report/report.qtpl:159
+//line report/report.qtpl:194
 func (p *Page) errorSeries() string {
-	//line report/report.qtpl:159
+	//line report/report.qtpl:194
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:159
+	//line report/report.qtpl:194
 	p.writeerrorSeries(qb422016)
-	//line report/report.qtpl:159
+	//line report/report.qtpl:194
 	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:159
+	//line report/report.qtpl:194
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:159
+	//line report/report.qtpl:194
 	return qs422016
-//line report/report.qtpl:159
+//line report/report.qtpl:194
 }
 
-//line report/report.qtpl:162
+//line report/report.qtpl:197
 func (p *Page) streamdurationSeries(qw422016 *qt422016.Writer) {
-	//line report/report.qtpl:162
+	//line report/report.qtpl:197
 	qw422016.N().S(`[`)
-	//line report/report.qtpl:165
+	//line report/report.qtpl:200
 	var keys []float64
 	for k := range p.RequestDuration {
 		keys = append(keys, k)
 	}
 	sort.Float64s(keys)
 
-	//line report/report.qtpl:171
+	//line report/report.qtpl:206
 	for i, k := range keys {
-		//line report/report.qtpl:171
+		//line report/report.qtpl:206
 		qw422016.N().S(`{name: '`)
-		//line report/report.qtpl:173
+		//line report/report.qtpl:208
 		qw422016.N().F(k)
-		//line report/report.qtpl:173
+		//line report/report.qtpl:208
 		qw422016.N().S(`',data: [`)
-		//line report/report.qtpl:174
+		//line report/report.qtpl:209
 		qw422016.N().S(float64SliceToString(p.RequestDuration[k]))
-		//line report/report.qtpl:174
+		//line report/report.qtpl:209
 		qw422016.N().S(`],tooltip: {valueSuffix: ' s'}}`)
-		//line report/report.qtpl:177
+		//line report/report.qtpl:212
 		if i+1 < len(keys) {
-			//line report/report.qtpl:177
+			//line report/report.qtpl:212
 			qw422016.N().S(`,`)
-			//line report/report.qtpl:177
+			//line report/report.qtpl:212
 		}
-		//line report/report.qtpl:178
+		//line report/report.qtpl:213
 	}
-	//line report/report.qtpl:178
+	//line report/report.qtpl:213
 	qw422016.N().S(`]`)
-//line report/report.qtpl:180
+//line report/report.qtpl:215
 }
 
-//line report/report.qtpl:180
+//line report/report.qtpl:215
 func (p *Page) writedurationSeries(qq422016 qtio422016.Writer) {
-	//line report/report.qtpl:180
+	//line report/report.qtpl:215
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:180
+	//line report/report.qtpl:215
 	p.streamdurationSeries(qw422016)
-	//line report/report.qtpl:180
+	//line report/report.qtpl:215
 	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:180
+//line report/report.qtpl:215
 }
 
-//line report/report.qtpl:180
+//line report/report.qtpl:215
 func (p *Page) durationSeries() string {
-	//line report/report.qtpl:180
+	//line report/report.qtpl:215
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:180
+	//line report/report.qtpl:215
 	p.writedurationSeries(qb422016)
-	//line report/report.qtpl:180
+	//line report/report.qtpl:215
 	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:180
+	//line report/report.qtpl:215
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:180
+	//line report/report.qtpl:215
 	return qs422016
-//line report/report.qtpl:180
+//line report/report.qtpl:215
 }
 
-//line report/report.qtpl:184
+//line report/report.qtpl:219
 func (p *Page) streambytesSeries(qw422016 *qt422016.Writer) {
-	//line report/report.qtpl:184
+	//line report/report.qtpl:219
 	qw422016.N().S(`[{name: 'BytesWritten',data: [`)
-	//line report/report.qtpl:187
+	//line report/report.qtpl:222
 	qw422016.N().S(float64SliceToString(rate(p.BytesWritten, p.Interval)))
-	//line report/report.qtpl:187
+	//line report/report.qtpl:222
 	qw422016.N().S(`]},{name: 'BytesRead',data: [`)
-	//line report/report.qtpl:190
+	//line report/report.qtpl:225
 	qw422016.N().S(float64SliceToString(rate(p.BytesRead, p.Interval)))
-	//line report/report.qtpl:190
+	//line report/report.qtpl:225
 	qw422016.N().S(`]}]`)
-//line report/report.qtpl:192
+//line report/report.qtpl:227
 }
 
-//line report/report.qtpl:192
+//line report/report.qtpl:227
 func (p *Page) writebytesSeries(qq422016 qtio422016.Writer) {
-	//line report/report.qtpl:192
+	//line report/report.qtpl:227
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:192
+	//line report/report.qtpl:227
 	p.streambytesSeries(qw422016)
-	//line report/report.qtpl:192
+	//line report/report.qtpl:227
 	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:192
+//line report/report.qtpl:227
 }
 
-//line report/report.qtpl:192
+//line report/report.qtpl:227
 func (p *Page) bytesSeries() string {
-	//line report/report.qtpl:192
+	//line report/report.qtpl:227
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:192
+	//line report/report.qtpl:227
 	p.writebytesSeries(qb422016)
-	//line report/report.qtpl:192
+	//line report/report.qtpl:227
 	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:192
+	//line report/report.qtpl:227
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:192
+	//line report/report.qtpl:227
 	return qs422016
-//line report/report.qtpl:192
+//line report/report.qtpl:227
 }
 
-//line report/report.qtpl:195
+//line report/report.qtpl:231
+func (p *Page) streamstatusCodesSeries(qw422016 *qt422016.Writer) {
+	//line report/report.qtpl:231
+	qw422016.N().S(`[{name: 'Status codes',colorByPoint: true,data: [`)
+	//line report/report.qtpl:236
+	for k, v := range p.StatusCodes {
+		//line report/report.qtpl:236
+		qw422016.N().S(`{name: '`)
+		//line report/report.qtpl:238
+		qw422016.N().S(k)
+		//line report/report.qtpl:238
+		qw422016.N().S(`',y:`)
+		//line report/report.qtpl:239
+		qw422016.N().FPrec(v, 2)
+		//line report/report.qtpl:239
+		qw422016.N().S(`},`)
+		//line report/report.qtpl:241
+	}
+	//line report/report.qtpl:241
+	qw422016.N().S(`]}]`)
+//line report/report.qtpl:244
+}
+
+//line report/report.qtpl:244
+func (p *Page) writestatusCodesSeries(qq422016 qtio422016.Writer) {
+	//line report/report.qtpl:244
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line report/report.qtpl:244
+	p.streamstatusCodesSeries(qw422016)
+	//line report/report.qtpl:244
+	qt422016.ReleaseWriter(qw422016)
+//line report/report.qtpl:244
+}
+
+//line report/report.qtpl:244
+func (p *Page) statusCodesSeries() string {
+	//line report/report.qtpl:244
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line report/report.qtpl:244
+	p.writestatusCodesSeries(qb422016)
+	//line report/report.qtpl:244
+	qs422016 := string(qb422016.B)
+	//line report/report.qtpl:244
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line report/report.qtpl:244
+	return qs422016
+//line report/report.qtpl:244
+}
+
+//line report/report.qtpl:247
 func streamjsUtils(qw422016 *qt422016.Writer) {
-	//line report/report.qtpl:195
+	//line report/report.qtpl:247
 	qw422016.N().S(`
 	function bytes(bytes, label) {
         if (bytes == 0) return '';
@@ -632,31 +767,31 @@ func streamjsUtils(qw422016 *qt422016.Writer) {
         return value;
     }
 `)
-//line report/report.qtpl:205
+//line report/report.qtpl:257
 }
 
-//line report/report.qtpl:205
+//line report/report.qtpl:257
 func writejsUtils(qq422016 qtio422016.Writer) {
-	//line report/report.qtpl:205
+	//line report/report.qtpl:257
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line report/report.qtpl:205
+	//line report/report.qtpl:257
 	streamjsUtils(qw422016)
-	//line report/report.qtpl:205
+	//line report/report.qtpl:257
 	qt422016.ReleaseWriter(qw422016)
-//line report/report.qtpl:205
+//line report/report.qtpl:257
 }
 
-//line report/report.qtpl:205
+//line report/report.qtpl:257
 func jsUtils() string {
-	//line report/report.qtpl:205
+	//line report/report.qtpl:257
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line report/report.qtpl:205
+	//line report/report.qtpl:257
 	writejsUtils(qb422016)
-	//line report/report.qtpl:205
+	//line report/report.qtpl:257
 	qs422016 := string(qb422016.B)
-	//line report/report.qtpl:205
+	//line report/report.qtpl:257
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line report/report.qtpl:205
+	//line report/report.qtpl:257
 	return qs422016
-//line report/report.qtpl:205
+//line report/report.qtpl:257
 }
