@@ -17,7 +17,8 @@ import (
 
 var (
 	httpClientRequestTimeout  = flag.Duration("httpClientRequestTimeout", time.Second*10, "Maximum time to wait for http response")
-	httpClientKeepAlivePeriod = flag.Duration("httpClientKeepAlivePeriod", time.Second*5, "Interval for sending keep-alive messages on keepalive connections. Zero disables keep-alive messages")
+	httpClientKeepAlivePeriod = flag.Duration("httpClientKeepAlivePeriod", time.Second*5, "Interval for sending keep-alive messages"+
+		"on keepalive connections. Zero disables keep-alive messages")
 	httpClientReadBufferSize  = flag.Int("httpClientReadBufferSize", 8*1024, "Per-connection read buffer size for httpclient")
 	httpClientWriteBufferSize = flag.Int("httpClientWriteBufferSize", 8*1024, "Per-connection write buffer size for httpclient")
 )
@@ -35,17 +36,19 @@ type Client struct {
 	request *fasthttp.Request
 
 	sync.Mutex
-	Jobsch  chan struct{}
-	workers int
+	Jobsch           chan struct{}
+	workers          int
+	statusCodeLabels map[int]prometheus.Labels
 }
 
 func New(request *fasthttp.Request, timeout time.Duration) *Client {
 	registerMetrics()
 	addr, isTLS := acquireAddr(request)
 	return &Client{
-		Jobsch:  make(chan struct{}, jobCapacity),
-		timeout: timeout,
-		request: request,
+		Jobsch:           make(chan struct{}, jobCapacity),
+		timeout:          timeout,
+		request:          request,
+		statusCodeLabels: make(map[int]prometheus.Labels),
 		HostClient: &fasthttp.HostClient{
 			Addr:                addr,
 			IsTLS:               isTLS,
@@ -120,9 +123,23 @@ func (c *Client) run() {
 		} else {
 			requestSuccess.Inc()
 		}
+
+		c.withStatusCode(resp.StatusCode()).Inc()
 		requestDuration.Observe(float64(time.Since(s).Seconds()))
 		requestSum.Inc()
 	}
+}
+
+func (c *Client) withStatusCode(code int) prometheus.Counter {
+	var label prometheus.Labels
+	var ok bool
+	c.Lock()
+	if label, ok = c.statusCodeLabels[code]; !ok {
+		label = prometheus.Labels{"code": strconv.Itoa(code)}
+		c.statusCodeLabels[code] = label
+	}
+	c.Unlock()
+	return statusCodes.With(label)
 }
 
 type hostConn struct {
