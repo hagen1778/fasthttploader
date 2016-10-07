@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// Limiter cant be used for hiqh rate, cause of slow writing to channel
+// it is suitable for rps less than 1kk. Real rate would be dropped for 8-9% for 1kk limit
+// Current implementation should be reworked in future
 type Limiter struct {
 	ch     chan struct{}
 	done   chan struct{}
@@ -13,15 +16,16 @@ type Limiter struct {
 	mu        sync.Mutex
 	limit     float64
 	lastEvent time.Time
+	tokens    uint64
 }
 
-const bufferSize = 1e9
+const bufferSize = 1e6
 
 func NewLimiter() *Limiter {
 	l := &Limiter{
 		ch:     make(chan struct{}, bufferSize),
 		done:   make(chan struct{}),
-		ticker: time.NewTicker(10 * time.Millisecond),
+		ticker: time.NewTicker(5 * time.Millisecond),
 	}
 	go l.start()
 	return l
@@ -34,6 +38,7 @@ func (l *Limiter) QPS() chan struct{} {
 func (l *Limiter) Stop() {
 	l.ticker.Stop()
 	l.done <- struct{}{}
+	l.drain()
 }
 
 func (l *Limiter) Limit() float64 {
@@ -54,7 +59,7 @@ func (l *Limiter) start() {
 			l.mu.Unlock()
 
 			n := int(time.Now().Sub(l.lastEvent).Seconds() * limit)
-			if n < len(l.ch) {
+			if n < len(l.ch) || n == 0 {
 				continue
 			}
 			n = n - len(l.ch)
