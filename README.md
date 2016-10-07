@@ -89,8 +89,8 @@ Options:
 
 ### Stages
 Testing consist of 3 stages:
-1. Burst - 5sec test with no limits by QPS and number of clients equal (by default, but can be changed by -c passing) to 500. Burst stage helps to detect possible QPS rate for further stages.
-2. Adjustment - 30sec test with smoothly QPS and clients tunning. Initial QPS and number of clients is taken from results of Burst stage. During 30s QPS and number of clients would be incresed
+* Burst - 5sec test with no limits by QPS and number of clients equal (by default, but can be changed by -c passing) to 500. Burst stage helps to detect possible QPS rate for further stages
+* Adjustment - 30sec test with smoothly QPS and clients tunning. Initial QPS and number of clients is taken from results of Burst stage. During 30s QPS and number of clients would be increased
 till timeout or errors limit
-3. Testing - step by step load balancing (10 steps) and keeping it while time is left
+* Testing - step by step load balancing (10 steps) and keeping it while time is left
 
