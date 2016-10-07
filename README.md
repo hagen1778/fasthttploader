@@ -1,6 +1,6 @@
 # fasthttploader
 
-Tool for http load-testing with auto-adjustment of load.
+Tool for http load-testing with auto-adjustment of load for Go 1.7+
 
 ### Quickstart
 Install:
