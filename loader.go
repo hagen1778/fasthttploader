@@ -257,8 +257,8 @@ func printSummary(stage string, t time.Time) {
 	since := time.Since(t).Seconds()
 	fmt.Printf("\n------ %s ------\n", stage)
 	fmt.Printf("Elapsed time: %fs\n", since)
-	fmt.Printf("Req done: %d; Success: %f %%\n", client.RequestSum(), (float64(client.RequestSuccess())/float64(client.RequestSum()))*100)
-	fmt.Printf("Rps: %f; Connections: %d\n", float64(client.RequestSum())/since, client.ConnOpen())
+	fmt.Printf("Req done: %d; Success: %.2f %%\n", client.RequestSum(), (float64(client.RequestSuccess())/float64(client.RequestSum()))*100)
+	fmt.Printf("QPS: %f; Connections: %d\n", float64(client.RequestSum())/since, client.ConnOpen())
 	fmt.Printf("Errors: %d; Timeouts: %d\n\n", client.Errors(), client.Timeouts())
 }
 
