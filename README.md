@@ -35,7 +35,7 @@ Errors: 0; Timeouts: 0
 ```
 
 Besides console result you can check html-report:
-![Charts with results of test](https://github.com/hagen1778/fasthttploader/charts.jpg "Result chart")
+![Charts with results of test](https://raw.githubusercontent.com/hagen1778/fasthttploader/master/charts.jpg "Result chart")
 
 ### Usage
 ```
