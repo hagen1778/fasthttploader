@@ -22,7 +22,7 @@ var (
 
 	fileName = flag.String("r", "report.html", "Set filename to store final report")
 
-	d = flag.Duration("d", 20*time.Second, "Cant be less than 20sec")
+	d = flag.Duration("d", 30*time.Second, "Cant be less than 20sec")
 	t = flag.Duration("t", 5*time.Second, "Request timeout")
 	q = flag.Int("q", 0, "Request per second limit. Detect automatically, if not setted")
 	c = flag.Int("c", 500, "Number of supposed clients")

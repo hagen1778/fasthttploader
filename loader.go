@@ -173,8 +173,7 @@ func makeLoad(cfg *loadConfig) {
 	throttle.SetLimit(qpsStep)
 	client.RunWorkers(workerStep)
 	go func() {
-		s := time.Duration(d.Seconds() / 2 / 10)
-		stepTick := time.Tick(time.Second * s) // half of the time, 10 steps in first half
+		stepTick := time.Tick(time.Second) // half of the time, 10 steps in first half
 		stateTick := time.Tick(samplePeriod)
 		timeout := time.After(*d)
 		steps := 0

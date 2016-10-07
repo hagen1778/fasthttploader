@@ -56,7 +56,7 @@ Options:
   -cpuprofile string
         write cpu profile to file
   -d duration
-        Cant be less than 20sec (default 20s)
+        Cant be less than 20sec (default 30s)
   -debug
         Print debug messages if true
   -disable-compression
