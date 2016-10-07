@@ -50,7 +50,7 @@ type loadConfig struct {
 }
 
 func run() {
-	client = fastclient.New(req, *t)
+	client = fastclient.New(req, *t, *successStatusCode)
 	pushgateway.Init()
 	r = &report.Page{
 		Title:           string(req.URI().Host()),
@@ -173,7 +173,7 @@ func makeLoad(cfg *loadConfig) {
 	throttle.SetLimit(qpsStep)
 	client.RunWorkers(workerStep)
 	go func() {
-		stepTick := time.Tick(time.Second) // half of the time, 10 steps in first half
+		stepTick := time.Tick(time.Second)
 		stateTick := time.Tick(samplePeriod)
 		timeout := time.After(*d)
 		steps := 0

@@ -36,9 +36,10 @@ type Client struct {
 	Jobsch chan struct{}
 
 	*fasthttp.HostClient
-	wg      sync.WaitGroup
-	timeout time.Duration
-	request *fasthttp.Request
+	wg                sync.WaitGroup
+	timeout           time.Duration
+	request           *fasthttp.Request
+	successStatusCode int
 
 	sync.Mutex
 	workers          int
@@ -46,14 +47,15 @@ type Client struct {
 }
 
 // New creates new client
-func New(request *fasthttp.Request, timeout time.Duration) *Client {
+func New(request *fasthttp.Request, timeout time.Duration, sc int) *Client {
 	registerMetrics()
 	addr, isTLS := acquireAddr(request)
 	return &Client{
-		Jobsch:           make(chan struct{}, jobCapacity),
-		timeout:          timeout,
-		request:          request,
-		statusCodeLabels: make(map[int]prometheus.Labels),
+		Jobsch:            make(chan struct{}, jobCapacity),
+		timeout:           timeout,
+		request:           request,
+		statusCodeLabels:  make(map[int]prometheus.Labels),
+		successStatusCode: sc,
 		HostClient: &fasthttp.HostClient{
 			Addr:                addr,
 			IsTLS:               isTLS,
@@ -131,11 +133,14 @@ func (c *Client) run() {
 				timeouts.Inc()
 			}
 			errors.Inc()
-		} else {
+		}
+
+		sc := resp.StatusCode()
+		if c.successStatusCode == sc {
 			requestSuccess.Inc()
 		}
 
-		c.withStatusCode(resp.StatusCode()).Inc()
+		c.withStatusCode(sc).Inc()
 		requestDuration.Observe(float64(time.Since(s).Seconds()))
 		requestSum.Inc()
 	}

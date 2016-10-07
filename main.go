@@ -30,6 +30,7 @@ var (
 	debug              = flag.Bool("debug", false, "Print debug messages if true")
 	disableKeepAlive   = flag.Bool("k", false, "Disable keepalive if true")
 	disableCompression = flag.Bool("disable-compression", false, "Disables compression if true")
+	successStatusCode  = flag.Int("successStatusCode", fasthttp.StatusOK, "Status code on which a successful request would be determined")
 
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	memprofile = flag.String("memprofile", "", "write memory profile to this file")
