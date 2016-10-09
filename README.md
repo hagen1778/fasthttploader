@@ -1,7 +1,6 @@
 # fasthttploader (Go 1.7+)
 
-This tool was developed to make http benchmarks without additional options like QueryPerSecond(QPS) or number of connections. 
-It will try to detect server possibilities by analyzing repsonses and choose optimal conditions for testing, but it will take some time. If you havent additional time - just set -q, -c and -d to skip adjustment-stages.
+Fasthttploader was created to simplify http benchmarking. Options like QueryPerSecond(QPS) and number of connections are not required anymore. Fasthttploader detects server possibilities by analyzing repsonses and choosing optimal conditions for testing. To avoid adjustment stage (cause it takes some extra time) - just set -q and -c flags.
 Fasthttploader also generate html-report after testing with some useful charts.
 
 ### Quickstart
@@ -94,6 +93,6 @@ Options:
 ### Stages
 Testing consist of 3 stages:
 * Burst - 5sec test with no limits by QPS and number of clients equal (by default, but can be changed by -c passing) to 500. Burst stage helps to detect possible QPS rate for further stages
-* Adjustment - 30sec test with smoothly QPS and clients tunning. Initial QPS and number of clients is taken from results of Burst stage. During 30s fasthttploader would increase QPS and number of clients till timeout or getting errors
-* Testing - based on settgins achieved from previous stage. It is a step by step load increasing (10 steps) and keeping it at max value till timeout.
+* Adjustment - 30sec test with smoothly QPS and clients tunning. Initial QPS and number of clients are taken from results of Burst stage. During 30s fasthttploader would increase QPS and number of clients till timeout or getting errors
+* Testing - based on settings achieved from previous stage. It is a step by step load increasing (10 steps) and keeping it at max value till timeout.
 
