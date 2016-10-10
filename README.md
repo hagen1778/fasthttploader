@@ -35,7 +35,7 @@ Rps: 1821.573798; Connections: 1738
 Errors: 0; Timeouts: 0
 ```
 Check generated html-report:
-![Charts with results of test](https://raw.githubusercontent.com/hagen1778/fasthttploader/master/charts.jpg "Result chart")
+![Charts with results of test](https://raw.githubusercontent.com/hagen1778/fasthttploader/master/report/static/img/charts.jpg "Result chart")
 
 ### Usage
 ```
