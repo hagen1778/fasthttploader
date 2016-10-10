@@ -19,6 +19,10 @@
     display: block;
     position: relative;
 }
+.fixed_headers td:nth-child(1),
+.fixed_headers th:nth-child(1) {
+    min-width: 200px;
+}
 .fixed_headers tbody {
     display: block;
     overflow: auto;

@@ -9,7 +9,7 @@ import (
 
 var (
 	gatewayAddr = flag.String("gatewayAddr", "localhost:9091", "Address of PushGateway service")
-	jobName = flag.String("jobName", "pushGateway", "Name of the job for PushGateway")
+	jobName     = flag.String("jobName", "pushGateway", "Name of the job for PushGateway")
 
 	pushGatewayClient *fasthttp.HostClient
 )
