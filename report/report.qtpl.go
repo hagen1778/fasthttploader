@@ -175,17 +175,17 @@ func StreamPrintPage(qw422016 *qt422016.Writer, p *Page) {
 	qw422016.N().S(`
 		`)
 	//line report/report.qtpl:62
-	p.streampieChart(qw422016, "status-codes", p.statusCodesSeries)
+	p.streambytesChart(qw422016, "written-vs-read", p.bytesSeries)
 	//line report/report.qtpl:62
 	qw422016.N().S(`
 		`)
 	//line report/report.qtpl:63
-	p.streamerrorMessagesTable(qw422016)
+	p.streampieChart(qw422016, "status-codes", p.statusCodesSeries)
 	//line report/report.qtpl:63
 	qw422016.N().S(`
 		`)
 	//line report/report.qtpl:64
-	p.streambytesChart(qw422016, "written-vs-read", p.bytesSeries)
+	p.streamerrorMessagesTable(qw422016)
 	//line report/report.qtpl:64
 	qw422016.N().S(`
 	</body>
@@ -519,7 +519,7 @@ func (p *Page) streamqpsSeries(qw422016 *qt422016.Writer) {
 	//line report/report.qtpl:179
 	qw422016.N().S(`
 	[{
-		name: 'Qps',
+		name: 'Load average',
 		data: [`)
 	//line report/report.qtpl:182
 	qw422016.N().S(uint64SliceToString(p.Qps))
@@ -527,7 +527,7 @@ func (p *Page) streamqpsSeries(qw422016 *qt422016.Writer) {
 	qw422016.N().S(`]
 	},
 	{
-		name: 'Req-per-sample',
+		name: 'Req-per-second',
 		data: [`)
 	//line report/report.qtpl:186
 	qw422016.N().S(float64SliceToString(rate(p.RequestSum, p.Interval)))

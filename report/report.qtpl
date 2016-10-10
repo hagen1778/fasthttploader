@@ -59,9 +59,9 @@ type seriesFunc func() string
 		{%= p.simpleChart("qps", p.qpsSeries) %}
 		{%= p.simpleChart("errors-vs-timeouts", p.errorSeries) %}
 		{%= p.simpleChart("latency", p.durationSeries) %}
+		{%= p.bytesChart("written-vs-read", p.bytesSeries) %}
 		{%= p.pieChart("status-codes", p.statusCodesSeries) %}
 		{%= p.errorMessagesTable() %}
-		{%= p.bytesChart("written-vs-read", p.bytesSeries) %}
 	</body>
 </html>
 {% endfunc %}
@@ -178,11 +178,11 @@ type seriesFunc func() string
 
 {% func (p *Page) qpsSeries() %}
 	[{
-		name: 'Qps',
+		name: 'Load average',
 		data: [{%s= uint64SliceToString(p.Qps) %}]
 	},
 	{
-		name: 'Req-per-sample',
+		name: 'Req-per-second',
 		data: [{%s= float64SliceToString(rate(p.RequestSum, p.Interval)) %}]
 	}]
 {% endfunc %}
