@@ -7,13 +7,14 @@ import (
 
 func TestLimiter_QPS(t *testing.T) {
 	testLimiter_QPS(t, 10)
-	testLimiter_QPS(t, 300000)
+	testLimiter_QPS(t, 100)
+	testLimiter_QPS(t, 100000)
 }
 
 func testLimiter_QPS(t *testing.T, rate int) {
 	limiter := NewLimiter()
 	limiter.SetLimit(float64(rate))
-	timer := time.After(time.Second)
+	timer := time.After(time.Millisecond * 1000)
 	i := 0
 	for {
 		select {

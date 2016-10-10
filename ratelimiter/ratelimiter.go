@@ -5,18 +5,15 @@ import (
 	"time"
 )
 
-// Limiter cant be used for hiqh rate, cause of slow writing to channel
-// it is suitable for rps less than 1kk. Real rate would be dropped for 8-9% for 1kk limit
-// Current implementation should be reworked in future
 type Limiter struct {
 	ch     chan struct{}
 	done   chan struct{}
 	ticker *time.Ticker
+	wg     sync.WaitGroup
 
 	mu        sync.Mutex
 	limit     float64
 	lastEvent time.Time
-	tokens    uint64
 }
 
 const bufferSize = 1e6
@@ -27,7 +24,11 @@ func NewLimiter() *Limiter {
 		done:   make(chan struct{}),
 		ticker: time.NewTicker(5 * time.Millisecond),
 	}
-	go l.start()
+	func() {
+		l.wg.Add(1)
+		go l.start()
+	}()
+
 	return l
 }
 
@@ -37,8 +38,8 @@ func (l *Limiter) QPS() chan struct{} {
 
 func (l *Limiter) Stop() {
 	l.ticker.Stop()
-	l.done <- struct{}{}
-	l.drain()
+	l.wg.Done()
+	drainChan(l.ch)
 }
 
 func (l *Limiter) Limit() float64 {
@@ -49,45 +50,37 @@ func (l *Limiter) Limit() float64 {
 }
 
 func (l *Limiter) start() {
+	var surplus float64
 	for {
 		select {
-		case <-l.done:
-			return
 		case <-l.ticker.C:
+			now := time.Now()
 			l.mu.Lock()
-			limit := l.limit
+			tokens := (now.Sub(l.lastEvent).Seconds() * l.limit) + surplus
 			l.mu.Unlock()
 
-			n := int(time.Now().Sub(l.lastEvent).Seconds() * limit)
+			n := int(tokens)
 			if n < len(l.ch) || n == 0 {
 				continue
 			}
+
 			n = n - len(l.ch)
+			surplus = tokens - float64(n)
 			for i := 0; i < n; i++ {
 				l.ch <- struct{}{}
 			}
 
 			l.mu.Lock()
-			l.lastEvent = time.Now()
+			l.lastEvent = now
 			l.mu.Unlock()
 		}
 	}
-}
-
-func (l *Limiter) drain() {
-	for {
-		select {
-		case <-l.ch:
-			continue
-		default:
-			return
-		}
-	}
+	l.wg.Wait()
 }
 
 func (l *Limiter) SetLimit(n float64) {
 	l.setLimit(0)
-	l.drain()
+	drainChan(l.ch)
 	l.setLimit(n)
 }
 
@@ -96,4 +89,15 @@ func (l *Limiter) setLimit(n float64) {
 	l.limit = n
 	l.lastEvent = time.Now()
 	l.mu.Unlock()
+}
+
+func drainChan(ch <-chan struct{}) {
+	for {
+		select {
+		case <-ch:
+			continue
+		default:
+			return
+		}
+	}
 }
