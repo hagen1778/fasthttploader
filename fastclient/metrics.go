@@ -8,6 +8,7 @@ import (
 var (
 	connOpen        prometheus.Gauge
 	statusCodes     *prometheus.CounterVec
+	errorMessages   *prometheus.CounterVec
 	requestDuration prometheus.Summary
 
 	timeouts       prometheus.Counter
@@ -25,9 +26,17 @@ func initMetrics() {
 	statusCodes = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "status_codes",
-			Help: "Distributed by status codes counter",
+			Help: "Distribution by status codes counter",
 		},
 		[]string{"code"},
+	)
+
+	errorMessages = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "errors",
+			Help: "Distribution by error messages",
+		},
+		[]string{"message"},
 	)
 
 	timeouts = prometheus.NewCounter(
@@ -122,6 +131,7 @@ func registerMetrics() {
 	prometheus.MustRegister(writeError)
 	prometheus.MustRegister(readError)
 	prometheus.MustRegister(statusCodes)
+	prometheus.MustRegister(errorMessages)
 }
 
 func unregisterMetrics() {
@@ -137,6 +147,7 @@ func unregisterMetrics() {
 	prometheus.Unregister(writeError)
 	prometheus.Unregister(readError)
 	prometheus.Unregister(statusCodes)
+	prometheus.Unregister(errorMessages)
 }
 
 func flushMetrics() {
@@ -197,6 +208,16 @@ func (c *Client) StatusCodes() map[string]float64 {
 	for _, label := range c.statusCodeLabels {
 		statusCodes.With(label).Write(m)
 		result[m.GetLabel()[0].GetValue()] = (*m.Counter.Value / total) * 100
+
+	}
+	return result
+}
+
+func (c *Client) ErrorMessages() map[string]int {
+	result := make(map[string]int)
+	for _, label := range c.errorMessages {
+		errorMessages.With(label).Write(m)
+		result[m.GetLabel()[0].GetValue()] = int(*m.Counter.Value)
 
 	}
 	return result

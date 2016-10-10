@@ -1,0 +1,44 @@
+.fixed_headers {
+    table-layout: fixed;
+    border-collapse: collapse;
+    width: 100%;
+}
+.fixed_headers th {
+    text-decoration: underline;
+}
+.fixed_headers th,
+.fixed_headers td {
+    padding: 5px;
+    text-align: left;
+}
+.fixed_headers thead {
+    background-color: #333333;
+    color: #fdfdfd;
+}
+.fixed_headers thead tr {
+    display: block;
+    position: relative;
+}
+.fixed_headers tbody {
+    display: block;
+    overflow: auto;
+    width: 100%;
+    height: 400px;
+}
+.fixed_headers tbody tr:nth-child(even) {
+    background-color: #dddddd;
+}
+.old_ie_wrapper {
+    height: 400px;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+.old_ie_wrapper tbody {
+    height: auto;
+}
+
+.title {
+    font-size: 18px;
+    text-align: center;
+    font-family: "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, sans-serif;
+}

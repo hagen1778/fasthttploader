@@ -227,6 +227,7 @@ func printState() {
 	r.BytesRead = append(r.BytesRead, client.BytesRead())
 	r.Qps = append(r.Qps, uint64(throttle.Limit()))
 	r.StatusCodes = client.StatusCodes()
+	r.ErrorMessages = client.ErrorMessages()
 	r.UpdateRequestDuration(client.RequestDuration())
 	r.Unlock()
 }

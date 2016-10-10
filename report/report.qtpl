@@ -2,6 +2,7 @@
     "strings"
     "sync"
     "sort"
+    "io/ioutil"
 ) %}
 
 {% code
@@ -23,6 +24,7 @@ type Page struct {
 	BytesRead []uint64
 	RequestDuration map[float64][]float64
 	StatusCodes map[string]float64
+	ErrorMessages map[string]int
 }
 
 type seriesFunc func() string
@@ -49,7 +51,8 @@ type seriesFunc func() string
 		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/highcharts.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
-		<script type="text/javascript">{%s= jsUtils() %}</script>
+		<script type="text/javascript">{%s= printAssets("./report/static/js/utils.js") %}</script>
+		<style>{%s= printAssets("./report/static/css/main.css") %}</style>
 	</head>
 	 <body>
 		{%= p.simpleChart("connections", p.connectionSeries) %}
@@ -57,6 +60,7 @@ type seriesFunc func() string
 		{%= p.simpleChart("errors-vs-timeouts", p.errorSeries) %}
 		{%= p.simpleChart("latency", p.durationSeries) %}
 		{%= p.pieChart("status-codes", p.statusCodesSeries) %}
+		{%= p.errorMessagesTable() %}
 		{%= p.bytesChart("written-vs-read", p.bytesSeries) %}
 	</body>
 </html>
@@ -162,7 +166,7 @@ type seriesFunc func() string
 				});
     		});
     </script>
-   	<div id="{%s= title %}" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+   	<div id="{%s= title %}" style = "float: left; width:50%; height: 400px;"></div>
 {% endfunc %}
 
 {% func (p *Page) connectionSeries()  %}
@@ -244,14 +248,47 @@ type seriesFunc func() string
 {% endfunc %}
 {% endstripspace %}
 
-{% func jsUtils() %}
-	function bytes(bytes, label) {
-        if (bytes == 0) return '';
-        var s = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-        var e = Math.floor(Math.log(bytes)/Math.log(1024));
-        var value = ((bytes/Math.pow(1024, Math.floor(e))).toFixed(2));
-        e = (e<0) ? (-e) : e;
-        if (label) value += ' ' + s[e];
-        return value;
-    }
+{% func (p *Page) errorMessagesTable() %}
+	<div style = "float: left; width:50%; height: 400px;">
+	 <!-- IE < 10 does not like giving a tbody a height.  The workaround here applies the scrolling to a wrapped <div>. -->
+	 <!--[if lte IE 9]>
+	 <div class="old_ie_wrapper">
+	 <!--<![endif]-->
+	 <p class = "title">Error distribution</p>
+	 <table class="fixed_headers">
+		 <thead>
+			<tr>
+				<td>Count</td>
+				<td>Message</td>
+			</tr>
+		 </thead>
+		 <tbody>
+			{% for k, v := range p.ErrorMessages %}
+				<tr>
+					<td>{%d= v %}</td>
+					<td>{%s= k %}</td>
+				</tr>
+			{% endfor %}
+			{% if len(p.ErrorMessages) == 0 %}
+			<tr>
+				<td></td>
+				<td>No error messages</td>
+			</tr>
+            {% endif %}
+		 </tbody>
+	 </table>
+	 <!--[if lte IE 9]>
+     </div>
+     <!--<![endif]-->
+     </div>
+{% endfunc %}
+
+{% func printAssets(path string) %}
+	{% code
+		 b, err := ioutil.ReadFile(path)
+            if err != nil {
+                panic(err)
+            }
+	%}
+	{%s= string(b) %}
 {% endfunc %}

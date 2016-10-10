@@ -44,6 +44,7 @@ type Client struct {
 	sync.Mutex
 	workers          int
 	statusCodeLabels map[int]prometheus.Labels
+	errorMessages    map[string]prometheus.Labels
 }
 
 // New creates new client
@@ -55,6 +56,7 @@ func New(request *fasthttp.Request, timeout time.Duration, sc int) *Client {
 		timeout:           timeout,
 		request:           request,
 		statusCodeLabels:  make(map[int]prometheus.Labels),
+		errorMessages:     make(map[string]prometheus.Labels),
 		successStatusCode: sc,
 		HostClient: &fasthttp.HostClient{
 			Addr:                addr,
@@ -133,6 +135,7 @@ func (c *Client) run() {
 				timeouts.Inc()
 			}
 			errors.Inc()
+			c.withErrorMessage(err.Error()).Inc()
 		}
 
 		sc := resp.StatusCode()
@@ -156,6 +159,18 @@ func (c *Client) withStatusCode(code int) prometheus.Counter {
 	}
 	c.Unlock()
 	return statusCodes.With(label)
+}
+
+func (c *Client) withErrorMessage(msg string) prometheus.Counter {
+	var label prometheus.Labels
+	var ok bool
+	c.Lock()
+	if label, ok = c.errorMessages[msg]; !ok {
+		label = prometheus.Labels{"message": msg}
+		c.errorMessages[msg] = label
+	}
+	c.Unlock()
+	return errorMessages.With(label)
 }
 
 type hostConn struct {
