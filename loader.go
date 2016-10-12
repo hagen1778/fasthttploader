@@ -213,7 +213,6 @@ func printState() {
 		fmt.Printf("[ Multiplier = %f ]\n", multiplier)
 		fmt.Printf("QPS was increased to: %f\nWorkers: %d\nJobsch len: %d\n", throttle.Limit(), client.Amount(), client.Overflow())
 		fmt.Printf(" >> Num of cons: %d; Req done: %d; Errors: %d; Timeouts: %d\n", client.ConnOpen(), client.RequestSum(), client.Errors(), client.Timeouts())
-		//fmt.Printf(" >> Real Req/s: %f; Transfer/s: %f kb;\n", float64(metrics.RequestSum())/since, float64(metrics.BytesWritten())/(since*1024))
 		fmt.Println("------------")
 	}
 
@@ -270,7 +269,6 @@ func acquireProgressBar(t time.Duration) (*pb.ProgressBar, <-chan time.Time) {
 	return pb, time.Tick(time.Second)
 }
 
-// TODO: move printSummary to this func and try to use startTime field, if it is possible
 func finishProgressBar(pb *pb.ProgressBar) {
 	pb.Set64(pb.Total)
 	pb.Finish()

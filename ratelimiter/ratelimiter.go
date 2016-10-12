@@ -7,7 +7,6 @@ import (
 
 type Limiter struct {
 	ch     chan struct{}
-	done   chan struct{}
 	ticker *time.Ticker
 	wg     sync.WaitGroup
 
@@ -21,7 +20,6 @@ const bufferSize = 1e6
 func NewLimiter() *Limiter {
 	l := &Limiter{
 		ch:     make(chan struct{}, bufferSize),
-		done:   make(chan struct{}),
 		ticker: time.NewTicker(5 * time.Millisecond),
 	}
 	func() {
