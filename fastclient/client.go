@@ -68,7 +68,7 @@ func New(request *fasthttp.Request, timeout time.Duration, sc int) *Client {
 	}
 }
 
-// Amount return of created workers
+// Amount return number of created workers
 // After Flush() workers would flushed too
 func (c *Client) Amount() int {
 	c.Lock()
@@ -78,7 +78,7 @@ func (c *Client) Amount() int {
 }
 
 // Overflow return length of job-channel
-// After Flush() channel would flushed too
+// after calling Flush(), channel would flushed too
 func (c *Client) Overflow() int {
 	c.Lock()
 	defer c.Unlock()
@@ -101,7 +101,6 @@ func drainChan(ch chan struct{}) {
 func (c *Client) Flush() {
 	drainChan(c.Jobsch)
 	close(c.Jobsch)
-
 	c.wg.Wait()
 	flushMetrics()
 	c.workers = 0
