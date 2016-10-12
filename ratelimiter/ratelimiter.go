@@ -57,13 +57,12 @@ func (l *Limiter) start() {
 			tokens := (now.Sub(l.lastEvent).Seconds() * l.limit) + surplus
 			l.mu.Unlock()
 
-			n := int(tokens)
-			if n < len(l.ch) || n == 0 {
+			n := int(tokens) - len(l.ch)
+			if n <= 0 {
 				continue
 			}
 
-			n = n - len(l.ch)
-			surplus = tokens - float64(n)
+			surplus = tokens - float64(int(tokens))
 			for i := 0; i < n; i++ {
 				l.ch <- struct{}{}
 			}
