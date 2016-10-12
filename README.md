@@ -40,10 +40,8 @@ Check generated html-report:
 ### Usage
 ```
 Usage: fasthttploader [options...] <url>
-Notice: fasthttploader would force agressive burst stages before testing 
-to detect max qps and number for clients. To avoid this you need to 
-set -c and -q parameters.
-
+Notice: fasthttploader would force agressive burst stages before testing to detect max qps and number for clients.
+To avoid this you need to set -c and -q parameters.
 Options:
   -A string
         Set Accept headers
@@ -66,8 +64,7 @@ Options:
   -h string
         Set headers
   -httpClientKeepAlivePeriod duration
-        Interval for sending keep-alive messageson keepalive connections. 
-        Zero disables keep-alive messages (default 5s)
+        Interval for sending keep-alive messageson keepalive connections. Zero disables keep-alive messages (default 5s)
   -httpClientReadBufferSize int
         Per-connection read buffer size for httpclient (default 8192)
   -httpClientRequestTimeout duration
@@ -85,8 +82,12 @@ Options:
         Request per second limit. Detect automatically, if not setted
   -r string
         Set filename to store final report (default "report.html")
+  -successStatusCode int
+        Status code on which a successful request would be determined (default 200)
   -t duration
         Request timeout (default 5s)
+  -web
+        Auto open generated report at browser
 
 ```
 
