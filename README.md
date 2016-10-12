@@ -40,7 +40,8 @@ Check generated html-report:
 ### Usage
 ```
 Usage: fasthttploader [options...] <url>
-Notice: fasthttploader would force agressive burst stages before testing to detect max qps and number for clients.
+Notice: fasthttploader would force agressive burst stages before testing to detect 
+max qps and number for clients.
 To avoid this you need to set -c and -q parameters.
 Options:
   -A string
@@ -64,7 +65,8 @@ Options:
   -h string
         Set headers
   -httpClientKeepAlivePeriod duration
-        Interval for sending keep-alive messageson keepalive connections. Zero disables keep-alive messages (default 5s)
+        Interval for sending keep-alive messageson keepalive connections. 
+        Zero disables keep-alive messages (default 5s)
   -httpClientReadBufferSize int
         Per-connection read buffer size for httpclient (default 8192)
   -httpClientRequestTimeout duration
