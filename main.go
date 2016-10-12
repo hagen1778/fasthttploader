@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hagen1778/fasthttploader/report"
 	"github.com/valyala/fasthttp"
 )
 
@@ -21,6 +22,7 @@ var (
 	contentType = flag.String("T", "text/html", "Set content-type headers")
 
 	fileName = flag.String("r", "report.html", "Set filename to store final report")
+	web      = flag.Bool("web", false, "Auto open generated report at browser")
 
 	d = flag.Duration("d", 30*time.Second, "Cant be less than 20sec")
 	t = flag.Duration("t", 5*time.Second, "Request timeout")
@@ -45,7 +47,6 @@ Options:
 var req = new(fasthttp.Request)
 
 func main() {
-	//openbrowser("file:///home/user/PhpstormProjects/gopath/src/github.com/hagen1778/fasthttploader/report.html")
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
 		flag.PrintDefaults()
@@ -72,6 +73,19 @@ func main() {
 	applyHeaders()
 	req.AppendBodyString(*body)
 	run()
+
+	if *web {
+		err := report.OpenBrowser(*fileName)
+		if err != nil {
+			fmt.Printf("Can't open browser to display report: %s", err)
+		}
+	} else {
+		command, err := report.PrintOpenBrowser(*fileName)
+		if err != nil {
+			fmt.Printf("Can't generate command to display report in browser: %s", err)
+		}
+		fmt.Printf("Check test results by executing next command:\n %s\n", command)
+	}
 
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)

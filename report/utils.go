@@ -64,7 +64,7 @@ func mustPwd() string {
 	return pwd
 }
 
-func MustOpenBrowser(fileName string) {
+func OpenBrowser(fileName string) error {
 	var err error
 
 	url := fmt.Sprintf("file:///%s/%s", mustPwd(), fileName)
@@ -78,7 +78,22 @@ func MustOpenBrowser(fileName string) {
 	default:
 		err = fmt.Errorf("unsupported platform")
 	}
-	if err != nil {
-		panic(err)
+
+	return err
+}
+
+func PrintOpenBrowser(fileName string) (command string, err error) {
+	url := fmt.Sprintf("file:///%s/%s", mustPwd(), fileName)
+	switch runtime.GOOS {
+	case "linux":
+		command = fmt.Sprintf("xdg-open %s", url)
+	case "windows":
+		command = fmt.Sprintf("start %s", url)
+	case "darwin":
+		command = fmt.Sprintf("open %s", url)
+	default:
+		err = fmt.Errorf("unsupported platform")
 	}
+
+	return
 }
