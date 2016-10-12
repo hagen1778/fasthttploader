@@ -870,7 +870,7 @@ func streamprintAssets(qw422016 *qt422016.Writer, path string) {
 	qw422016.N().S(`
 	`)
 	//line report/report.qtpl:293
-	qw422016.N().S(string(b))
+	qw422016.N().Z(b)
 	//line report/report.qtpl:293
 	qw422016.N().S(`
 `)

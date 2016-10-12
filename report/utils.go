@@ -21,7 +21,7 @@ func float64SliceToString(sl []float64) string {
 	return strings.Join(str[:], ",")
 }
 
-// Rate calculate difference between current and previous value
+// rate calculate difference between current and previous value
 func rate(sl []uint64, step float64) []float64 {
 	result := make([]float64, len(sl))
 	if len(sl) < 2 {
