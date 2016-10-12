@@ -2,7 +2,6 @@
     "strings"
     "sync"
     "sort"
-    "io/ioutil"
 ) %}
 
 {% code
@@ -51,8 +50,8 @@ type seriesFunc func() string
 		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/highcharts.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
-		<script type="text/javascript">{%s= printAssets("./report/static/js/utils.js") %}</script>
-		<style>{%s= printAssets("./report/static/css/main.css") %}</style>
+		<script type="text/javascript">{%z= printAssets("./report/static/js/utils.js") %}</script>
+		<style>{%z= printAssets("./report/static/css/main.css") %}</style>
 	</head>
 	 <body>
 		{%= p.simpleChart("connections", p.connectionSeries) %}
@@ -283,12 +282,4 @@ type seriesFunc func() string
      </div>
 {% endfunc %}
 
-{% func printAssets(path string) %}
-	{% code
-		 b, err := ioutil.ReadFile(path)
-            if err != nil {
-                panic(err)
-            }
-	%}
-	{%z= b %}
-{% endfunc %}
+

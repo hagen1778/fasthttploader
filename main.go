@@ -45,6 +45,7 @@ Options:
 var req = new(fasthttp.Request)
 
 func main() {
+	//openbrowser("file:///home/user/PhpstormProjects/gopath/src/github.com/hagen1778/fasthttploader/report.html")
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
 		flag.PrintDefaults()

@@ -81,6 +81,7 @@ func run() {
 
 	f.WriteString(report.PrintPage(r))
 	fmt.Printf("Check test results at %s\n", *fileName)
+	report.MustOpenBrowser(*fileName)
 }
 
 func burstThroughput(cfg *loadConfig) {
