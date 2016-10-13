@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+// Limiter represent object,
+// which allows to set QueryPerSecond limit
+// and provides a channel (via QPS()) which is
+// filled by messages according to limit
 type Limiter struct {
 	ch     chan struct{}
 	doneCh chan struct{}
@@ -17,6 +21,7 @@ type Limiter struct {
 
 const bufferSize = 1e6
 
+// NewLimiter inits and returns new Limiter obj
 func NewLimiter() *Limiter {
 	l := &Limiter{
 		ch:     make(chan struct{}, bufferSize),
