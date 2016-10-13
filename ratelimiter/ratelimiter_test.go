@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-func TestLimiter_QPS(t *testing.T) {
-	testLimiter_QPS(t, 10)
-	testLimiter_QPS(t, 100)
-	testLimiter_QPS(t, 100000)
+func TestLimiterQPS(t *testing.T) {
+	testLimiterQPS(t, 10)
+	testLimiterQPS(t, 100)
+	testLimiterQPS(t, 100000)
 }
 
-func testLimiter_QPS(t *testing.T, rate int) {
+func testLimiterQPS(t *testing.T, rate int) {
 	limiter := NewLimiter()
 	limiter.SetLimit(float64(rate))
 	timer := time.After(time.Millisecond * 1000)
@@ -36,7 +36,7 @@ func testLimiter_QPS(t *testing.T, rate int) {
 		}
 	}
 }
-func TestLimiter_Stop(t *testing.T) {
+func TestLimiterStop(t *testing.T) {
 	limiter := NewLimiter()
 	limiter.SetLimit(1000)
 	time.Sleep(50 * time.Millisecond)
@@ -46,7 +46,7 @@ func TestLimiter_Stop(t *testing.T) {
 	}
 }
 
-func TestLimiter_SetLimit(t *testing.T) {
+func TestLimiterSetLimit(t *testing.T) {
 	limiter := NewLimiter()
 	limiter.SetLimit(1000)
 	time.Sleep(50 * time.Millisecond)

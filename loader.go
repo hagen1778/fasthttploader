@@ -9,7 +9,6 @@ import (
 
 	"github.com/cheggaaa/pb"
 	"github.com/hagen1778/fasthttploader/fastclient"
-	"github.com/hagen1778/fasthttploader/pushgateway"
 	"github.com/hagen1778/fasthttploader/ratelimiter"
 	"github.com/hagen1778/fasthttploader/report"
 )
@@ -51,7 +50,6 @@ type loadConfig struct {
 
 func run() {
 	client = fastclient.New(req, *t, *successStatusCode)
-	pushgateway.Init()
 	r = &report.Page{
 		Title:           string(req.URI().Host()),
 		RequestDuration: make(map[float64][]float64),
@@ -196,10 +194,6 @@ func makeLoad(cfg *loadConfig) {
 				bar.Increment()
 			case <-stateTick:
 				printState()
-
-				//if err := pushgateway.Push(c.Metrics()); err != nil {
-				//	fmt.Printf("%s\n", err)
-				//}
 			}
 		}
 	}()
