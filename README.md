@@ -3,7 +3,7 @@
 # fasthttploader (Go 1.7+)
 
 Fasthttploader was created to simplify http benchmarking. Options like QueryPerSecond(QPS) and number of connections are not required anymore. Fasthttploader detects server possibilities by analyzing repsonses and choosing optimal conditions for testing. To avoid adjustment stage (cause it takes some extra time) - just set -q and -c flags.
-Fasthttploader also generate html-report after testing with some useful charts.
+Fasthttploader generates html-report after testing with some useful charts.
 
 ### Quickstart
 Install:
