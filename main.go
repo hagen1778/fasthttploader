@@ -39,7 +39,7 @@ var (
 )
 
 var usage = `Usage: fasthttploader [options...] <url>
-Notice: fasthttploader would force agressive burst stages before testing to detect max qps and number for clients.
+Notice: fasthttploader would force aggressive burst stages before testing to detect max qps and number for clients.
 To avoid this you need to set -c and -q parameters.
 Options:
 `
