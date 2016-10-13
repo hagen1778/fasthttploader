@@ -1,3 +1,5 @@
+[![Go Report](https://goreportcard.com/report/github.com/hagen1778/fasthttploader)](https://goreportcard.com/report/github.com/hagen1778/fasthttploader)
+
 # fasthttploader (Go 1.7+)
 
 Fasthttploader was created to simplify http benchmarking. Options like QueryPerSecond(QPS) and number of connections are not required anymore. Fasthttploader detects server possibilities by analyzing repsonses and choosing optimal conditions for testing. To avoid adjustment stage (cause it takes some extra time) - just set -q and -c flags.
