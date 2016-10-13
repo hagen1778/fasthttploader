@@ -50,8 +50,8 @@ type seriesFunc func() string
 		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/highcharts.js"></script>
 		<script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
-		<script type="text/javascript">{%z= printAssets("./report/static/js/utils.js") %}</script>
-		<style>{%z= printAssets("./report/static/css/main.css") %}</style>
+		<script type="text/javascript">{%z= MustAsset("report/static/js/utils.js") %}</script>
+		<style>{%z= MustAsset("report/static/css/main.css") %}</style>
 	</head>
 	 <body>
 		{%= p.simpleChart("connections", p.connectionSeries) %}

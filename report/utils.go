@@ -47,15 +47,6 @@ func rate(sl []uint64, step float64) []float64 {
 	return result
 }
 
-func printAssets(path string) []byte {
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		panic(err)
-	}
-
-	return b
-}
-
 func mustPwd() string {
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -64,6 +55,7 @@ func mustPwd() string {
 	return pwd
 }
 
+// OpenBrowser opens given url by default browser
 func OpenBrowser(fileName string) error {
 	var err error
 
@@ -82,6 +74,7 @@ func OpenBrowser(fileName string) error {
 	return err
 }
 
+// PrintOpenBrowser prints command to open given url by default browser from console
 func PrintOpenBrowser(fileName string) (command string, err error) {
 	url := fmt.Sprintf("file:///%s/%s", mustPwd(), fileName)
 	switch runtime.GOOS {

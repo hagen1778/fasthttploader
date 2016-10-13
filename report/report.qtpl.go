@@ -142,12 +142,12 @@ func StreamPrintPage(qw422016 *qt422016.Writer, p *Page) {
 		<script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
 		<script type="text/javascript">`)
 	//line report/report.qtpl:53
-	qw422016.N().Z(printAssets("./report/static/js/utils.js"))
+	qw422016.N().Z(MustAsset("report/static/js/utils.js"))
 	//line report/report.qtpl:53
 	qw422016.N().S(`</script>
 		<style>`)
 	//line report/report.qtpl:54
-	qw422016.N().Z(printAssets("./report/static/css/main.css"))
+	qw422016.N().Z(MustAsset("report/static/css/main.css"))
 	//line report/report.qtpl:54
 	qw422016.N().S(`</style>
 	</head>

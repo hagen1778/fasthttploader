@@ -99,3 +99,7 @@ Testing consist of 3 stages:
 * Adjustment - 30sec test with smoothly QPS and clients tunning. Initial QPS and number of clients are taken from results of Burst stage. During 30s fasthttploader would increase QPS and number of clients till timeout or getting errors
 * Testing - based on settings achieved from previous stage. It is a step by step load increasing (10 steps) and keeping it at max value till timeout.
 
+To rebuild assets use:
+```
+go-bindata -pkg report -ignore=\\.img -o report/binddata.go report/static/...
+```
