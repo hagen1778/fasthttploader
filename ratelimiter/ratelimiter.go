@@ -7,6 +7,7 @@ import (
 
 type Limiter struct {
 	ch     chan struct{}
+	doneCh chan struct{}
 	ticker *time.Ticker
 	wg     sync.WaitGroup
 
@@ -20,6 +21,7 @@ const bufferSize = 1e6
 func NewLimiter() *Limiter {
 	l := &Limiter{
 		ch:     make(chan struct{}, bufferSize),
+		doneCh: make(chan struct{}),
 		ticker: time.NewTicker(5 * time.Millisecond),
 	}
 	func() {
@@ -30,29 +32,13 @@ func NewLimiter() *Limiter {
 	return l
 }
 
-func (l *Limiter) QPS() chan struct{} {
-	return l.ch
-}
-
-func (l *Limiter) Stop() {
-	l.ticker.Stop()
-	l.wg.Done()
-	drainChan(l.ch)
-}
-
-func (l *Limiter) Limit() float64 {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	return l.limit
-}
-
 func (l *Limiter) start() {
 	var surplus float64
 	for {
 		select {
+		case <-l.doneCh:
+			return
 		case <-l.ticker.C:
-			now := time.Now()
 			l.mu.Lock()
 			tokens := (now.Sub(l.lastEvent).Seconds() * l.limit) + surplus
 			l.mu.Unlock()
@@ -61,7 +47,6 @@ func (l *Limiter) start() {
 			if n <= 0 {
 				continue
 			}
-
 			surplus = tokens - float64(int(tokens))
 			for i := 0; i < n; i++ {
 				l.ch <- struct{}{}
@@ -72,9 +57,34 @@ func (l *Limiter) start() {
 			l.mu.Unlock()
 		}
 	}
-	l.wg.Wait()
 }
 
+// QPS returns channel which would be populated with messages
+// according to set limit
+func (l *Limiter) QPS() chan struct{} {
+	return l.ch
+}
+
+// Stop stops generating messages into QPS channel
+// cant be used after Stop
+func (l *Limiter) Stop() {
+	l.ticker.Stop()
+	l.doneCh <- struct{}{}
+	drainChan(l.ch)
+}
+
+// Limit returns current QPS rate
+// is thread-safe
+func (l *Limiter) Limit() float64 {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.limit
+}
+
+// SetLimit updates current QPS value
+// also clears current channel from messages
+// is thread-safe
 func (l *Limiter) SetLimit(n float64) {
 	l.setLimit(0)
 	drainChan(l.ch)
