@@ -158,49 +158,49 @@ func flushMetrics() {
 var m = &dto.Metric{}
 
 // Errors returns value of errors-metric
-func (Client) Errors() uint64 {
+func (*Client) Errors() uint64 {
 	errors.Write(m)
 	return uint64(*m.Counter.Value)
 }
 
 // Timeouts returns value of timeouts-metric
-func (Client) Timeouts() uint64 {
+func (*Client) Timeouts() uint64 {
 	timeouts.Write(m)
 	return uint64(*m.Counter.Value)
 }
 
 // RequestSum returns value of requestSum-metric
-func (Client) RequestSum() uint64 {
+func (*Client) RequestSum() uint64 {
 	requestSum.Write(m)
 	return uint64(*m.Counter.Value)
 }
 
 // RequestSuccess returns value of requestSuccess-metric
-func (Client) RequestSuccess() uint64 {
+func (*Client) RequestSuccess() uint64 {
 	requestSuccess.Write(m)
 	return uint64(*m.Counter.Value)
 }
 
 // BytesWritten returns value of bytesWritten-metric
-func (Client) BytesWritten() uint64 {
+func (*Client) BytesWritten() uint64 {
 	bytesWritten.Write(m)
 	return uint64(*m.Counter.Value)
 }
 
 // BytesRead returns value of bytesRead-metric
-func (Client) BytesRead() uint64 {
+func (*Client) BytesRead() uint64 {
 	bytesRead.Write(m)
 	return uint64(*m.Counter.Value)
 }
 
 // ConnOpen returns value of connOpen-metric
-func (Client) ConnOpen() uint64 {
+func (*Client) ConnOpen() uint64 {
 	connOpen.Write(m)
 	return uint64(*m.Gauge.Value)
 }
 
 // RequestDuration returns map quantile:value for requestDuration-metric
-func (Client) RequestDuration() map[float64]float64 {
+func (*Client) RequestDuration() map[float64]float64 {
 	requestDuration.Write(m)
 	result := make(map[float64]float64, len(m.Summary.Quantile))
 	for _, v := range m.Summary.Quantile {
