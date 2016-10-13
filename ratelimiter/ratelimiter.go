@@ -9,7 +9,6 @@ type Limiter struct {
 	ch     chan struct{}
 	doneCh chan struct{}
 	ticker *time.Ticker
-	wg     sync.WaitGroup
 
 	mu        sync.Mutex
 	limit     float64
@@ -24,10 +23,7 @@ func NewLimiter() *Limiter {
 		doneCh: make(chan struct{}),
 		ticker: time.NewTicker(5 * time.Millisecond),
 	}
-	func() {
-		l.wg.Add(1)
-		go l.start()
-	}()
+	go l.start()
 
 	return l
 }
@@ -39,6 +35,7 @@ func (l *Limiter) start() {
 		case <-l.doneCh:
 			return
 		case <-l.ticker.C:
+			now := time.Now()
 			l.mu.Lock()
 			tokens := (now.Sub(l.lastEvent).Seconds() * l.limit) + surplus
 			l.mu.Unlock()
@@ -86,6 +83,9 @@ func (l *Limiter) Limit() float64 {
 // also clears current channel from messages
 // is thread-safe
 func (l *Limiter) SetLimit(n float64) {
+	if n < 1 {
+		n = 1
+	}
 	l.setLimit(0)
 	drainChan(l.ch)
 	l.setLimit(n)

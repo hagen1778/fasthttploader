@@ -109,6 +109,9 @@ func (c *Client) Flush() {
 
 // RunWorkers runs n goroutines to serve jobs from Jobsch
 func (c *Client) RunWorkers(n int) {
+	if n < 1 {
+		n = 1
+	}
 	for i := 0; i < n; i++ {
 		c.wg.Add(1)
 		go func() {
