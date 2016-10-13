@@ -1,4 +1,4 @@
-[![Go Report](https://goreportcard.com/report/github.com/hagen1778/fasthttploader)](https://goreportcard.com/report/github.com/hagen1778/fasthttploader)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hagen1778/fasthttploader)](https://goreportcard.com/report/github.com/hagen1778/fasthttploader)
 
 # fasthttploader (Go 1.7+)
 
