@@ -120,11 +120,11 @@ func calibrateThroughput(cfg *loadConfig) {
 		for {
 			select {
 			case <-timeout:
-				cancel()
 				finishProgressBar(bar)
 				cfg.qps = throttle.Limit()
 				cfg.c = client.Amount()
 				printSummary("Adjustment test", t)
+				cancel()
 				return
 			case <-progressTicker:
 				bar.Increment()
@@ -178,9 +178,9 @@ func makeLoad(cfg *loadConfig) {
 		for {
 			select {
 			case <-timeout:
-				cancel()
 				finishProgressBar(bar)
 				printSummary("Loading test", startTime)
+				cancel()
 				throttle.Stop()
 				return
 			case <-stepTick:
