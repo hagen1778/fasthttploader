@@ -99,7 +99,7 @@ Options:
 Testing consist of 3 stages:
 * Burst - 5sec test with no limits by QPS and number of clients equal (by default, but can be changed by -c passing) to 500. Burst stage helps to detect possible QPS rate for further stages
 * Adjustment - 30sec test with smoothly QPS and clients tunning. Initial QPS and number of clients are taken from results of Burst stage. During 30s fasthttploader would increase QPS and number of clients till timeout or getting errors
-* Testing - based on settings achieved from previous stage. It is a step by step load increasing (10 steps) and keeping it at max value till timeout.
+* Testing - just loading test, based on settings achieved from previous stage.
 
 To rebuild assets use:
 ```
