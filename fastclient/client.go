@@ -29,6 +29,10 @@ const (
 	maxConns            = 1<<31 - 1
 )
 
+func init() {
+	registerMetrics()
+}
+
 // Client is a wrapper for fasthttp.HostClient
 // It allows to send requests and collect metrics while sending
 type Client struct {
@@ -37,7 +41,6 @@ type Client struct {
 
 	*fasthttp.HostClient
 	wg                sync.WaitGroup
-	timeout           time.Duration
 	request           *fasthttp.Request
 	successStatusCode int
 
@@ -49,11 +52,10 @@ type Client struct {
 
 // New creates new client
 func New(request *fasthttp.Request, timeout time.Duration, sc int) *Client {
-	registerMetrics()
+	flushMetrics()
 	addr, isTLS := acquireAddr(request)
 	return &Client{
 		Jobsch:            make(chan struct{}, jobCapacity),
-		timeout:           timeout,
 		request:           request,
 		statusCodeLabels:  make(map[int]prometheus.Labels),
 		errorMessages:     make(map[string]prometheus.Labels),
@@ -64,12 +66,14 @@ func New(request *fasthttp.Request, timeout time.Duration, sc int) *Client {
 			Dial:                dial,
 			MaxIdleConnDuration: maxIdleConnDuration,
 			MaxConns:            maxConns,
+			ReadTimeout:         timeout,
+			WriteTimeout:        timeout,
 		},
 	}
 }
 
 // Amount return number of created workers
-// After Flush() workers would flushed too
+// after Flush() workers would flushed too
 func (c *Client) Amount() int {
 	c.Lock()
 	defer c.Unlock()
@@ -131,7 +135,7 @@ func (c *Client) run() {
 	c.request.CopyTo(r)
 	for range c.Jobsch {
 		s := time.Now()
-		err := c.DoTimeout(r, &resp, c.timeout)
+		err := c.Do(r, &resp)
 		if err != nil {
 			if err == fasthttp.ErrTimeout {
 				timeouts.Inc()

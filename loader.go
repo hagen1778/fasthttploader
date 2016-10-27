@@ -15,7 +15,7 @@ import (
 
 const (
 	// Duration of burst-testing, without qps-limit. Used to estimate start test conditions
-	calibrateDuration = 5 * time.Second
+	calibrateDuration = 10 * time.Second
 
 	// Duration of adjustable testing, while trying to reach max qps with minimal lvl of errors
 	adjustmentDuration = 30 * time.Second
@@ -49,7 +49,6 @@ type loadConfig struct {
 }
 
 func run() {
-	client = fastclient.New(req, *t, *successStatusCode)
 	r = &report.Page{
 		Title:           string(req.URI().Host()),
 		RequestDuration: make(map[float64][]float64),
@@ -75,12 +74,12 @@ func run() {
 	if err != nil {
 		log.Fatalf("Error while trying to create file: %s", err)
 	}
-	defer f.Close()
-
 	f.WriteString(report.PrintPage(r))
+	f.Close()
 }
 
 func burstThroughput(cfg *loadConfig) {
+	client = fastclient.New(req, *t, *successStatusCode)
 	startTime := time.Now()
 	timeout := time.After(calibrateDuration)
 	bar, progressTicker := acquireProgressBar(calibrateDuration)
@@ -97,7 +96,6 @@ func burstThroughput(cfg *loadConfig) {
 				cfg.c /= 2
 			}
 			printSummary("Burst Throughput", startTime)
-			client.Flush()
 			return
 		case <-progressTicker:
 			bar.Increment()
@@ -108,6 +106,7 @@ func burstThroughput(cfg *loadConfig) {
 }
 
 func calibrateThroughput(cfg *loadConfig) {
+	client = fastclient.New(req, *t, *successStatusCode)
 	t := time.Now()
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -162,34 +161,23 @@ func calibrate() {
 }
 
 func makeLoad(cfg *loadConfig) {
+	client = fastclient.New(req, *t, *successStatusCode)
 	startTime := time.Now()
 	ctx, cancel := context.WithCancel(context.Background())
-
-	workerStep := cfg.c / 10
-	qpsStep := cfg.qps / 10
-	throttle.SetLimit(qpsStep)
-	client.RunWorkers(workerStep)
+	throttle.SetLimit(cfg.qps)
+	client.RunWorkers(cfg.c)
 	go func() {
-		stepTick := time.Tick(time.Second)
 		stateTick := time.Tick(samplePeriod)
 		timeout := time.After(*d)
-		steps := 0
 		bar, progressTicker := acquireProgressBar(*d)
 		for {
 			select {
 			case <-timeout:
 				finishProgressBar(bar)
 				printSummary("Loading test", startTime)
-				cancel()
 				throttle.Stop()
+				cancel()
 				return
-			case <-stepTick:
-				if steps >= 10-1 {
-					continue
-				}
-				throttle.SetLimit(throttle.Limit() + qpsStep)
-				client.RunWorkers(workerStep)
-				steps++
 			case <-progressTicker:
 				bar.Increment()
 			case <-stateTick:
@@ -237,7 +225,6 @@ func load(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			client.Flush()
 			return
 		case <-throttle.QPS():
 			client.Jobsch <- struct{}{}
