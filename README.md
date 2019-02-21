@@ -6,6 +6,12 @@ Fasthttploader was created to simplify http benchmarking. Options like QueryPerS
 Fasthttploader generates html-report after testing with some useful charts.
 
 ### Quickstart
+
+Docker:
+```
+docker run --rm -v /tmp:/tmp nickgrealy/fasthttploader -r /tmp/report.html https://www.google.com
+```
+
 Install:
 ```
 go get github.com/hagen1778/fasthttploader
